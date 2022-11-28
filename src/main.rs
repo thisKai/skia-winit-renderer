@@ -4,6 +4,7 @@ use std::{
     ops::Deref,
 };
 
+use skia_safe::{colors, Paint};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
@@ -22,12 +23,16 @@ use glutin::{
 
 use glutin_winit::DisplayBuilder;
 
+use crate::skia::SkiaGlRenderer;
+
 pub mod gl {
     #![allow(clippy::all)]
     include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
 
     pub use Gles2 as Gl;
 }
+
+mod skia;
 
 pub fn main() {
     let event_loop = EventLoopBuilder::new().build();
@@ -123,7 +128,9 @@ pub fn main() {
                 // The context needs to be current for the Renderer to set up shaders and
                 // buffers. It also performs function loading, which needs a current context on
                 // WGL.
-                renderer.get_or_insert_with(|| Renderer::new(&gl_display));
+                renderer.get_or_insert_with(|| {
+                    SkiaGlRenderer::new(&gl_config, &gl_display, gl_window.window.inner_size())
+                });
 
                 // Try setting vsync.
                 if let Err(res) = gl_window
@@ -160,8 +167,8 @@ pub fn main() {
                                 NonZeroU32::new(size.width).unwrap(),
                                 NonZeroU32::new(size.height).unwrap(),
                             );
-                            let renderer = renderer.as_ref().unwrap();
-                            renderer.resize(size.width as i32, size.height as i32);
+                            let renderer = renderer.as_mut().unwrap();
+                            renderer.resize(&gl_config, &gl_display, size);
                         }
                     }
                 }
@@ -172,12 +179,14 @@ pub fn main() {
             },
             Event::RedrawRequested(_) => {
                 if let Some((gl_context, gl_window)) = &state {
-                    let renderer = renderer.as_ref().unwrap();
-                    renderer.draw();
+                    let renderer = renderer.as_mut().unwrap();
+                    renderer.draw(|canvas| {
+                        canvas.draw_circle((200, 200), 50., &Paint::new(colors::CYAN, None));
+                    });
 
                     gl_window.surface.swap_buffers(gl_context).unwrap();
                 }
-            },
+            }
             _ => (),
         }
     })
