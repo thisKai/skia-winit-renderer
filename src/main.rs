@@ -170,15 +170,14 @@ pub fn main() {
                 }
                 _ => (),
             },
-            Event::RedrawEventsCleared => {
+            Event::RedrawRequested(_) => {
                 if let Some((gl_context, gl_window)) = &state {
                     let renderer = renderer.as_ref().unwrap();
                     renderer.draw();
-                    gl_window.window.request_redraw();
 
                     gl_window.surface.swap_buffers(gl_context).unwrap();
                 }
-            }
+            },
             _ => (),
         }
     })
