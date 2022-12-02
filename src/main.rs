@@ -8,22 +8,22 @@ use skia_safe::{colors, Paint};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
-    window::{Window, WindowBuilder},
+    window::WindowBuilder,
 };
 
 use raw_window_handle::HasRawWindowHandle;
 
 use glutin::{
-    config::{Config, ConfigTemplateBuilder},
+    config::ConfigTemplateBuilder,
     context::{ContextApi, ContextAttributesBuilder},
     display::GetGlDisplay,
     prelude::*,
-    surface::{Surface, SurfaceAttributesBuilder, SwapInterval, WindowSurface},
+    surface::SwapInterval,
 };
 
 use glutin_winit::DisplayBuilder;
 
-use crate::skia::SkiaGlRenderer;
+use crate::{skia::SkiaGlRenderer, window::GlWindow};
 
 pub mod gl {
     #![allow(clippy::all)]
@@ -32,7 +32,9 @@ pub mod gl {
     pub use Gles2 as Gl;
 }
 
+mod app;
 mod skia;
+mod window;
 
 pub fn main() {
     let event_loop = EventLoopBuilder::new().build();
@@ -190,34 +192,6 @@ pub fn main() {
             _ => (),
         }
     })
-}
-
-pub struct GlWindow {
-    // XXX the surface must be dropped before the window.
-    pub surface: Surface<WindowSurface>,
-
-    pub window: Window,
-}
-
-impl GlWindow {
-    pub fn new(window: Window, config: &Config) -> Self {
-        let (width, height): (u32, u32) = window.inner_size().into();
-        let raw_window_handle = window.raw_window_handle();
-        let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
-            raw_window_handle,
-            NonZeroU32::new(width).unwrap(),
-            NonZeroU32::new(height).unwrap(),
-        );
-
-        let surface = unsafe {
-            config
-                .display()
-                .create_window_surface(config, &attrs)
-                .unwrap()
-        };
-
-        Self { window, surface }
-    }
 }
 
 pub struct Renderer {
