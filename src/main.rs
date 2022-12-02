@@ -168,7 +168,7 @@ pub fn main() {
                                 NonZeroU32::new(size.height).unwrap(),
                             );
                             let renderer = renderer.as_mut().unwrap();
-                            renderer.resize(&gl_config, &gl_display, size);
+                            renderer.resize(&gl_config, size);
                         }
                     }
                 }

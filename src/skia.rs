@@ -32,7 +32,7 @@ impl SkiaGlRenderer {
                 format: skia_safe::gpu::gl::Format::RGBA8.into(),
             }
         };
-        let surface = create_skia_surface(gl_config, gl_display, size, &fb_info, &mut gr_context);
+        let surface = create_skia_surface(gl_config, size, &fb_info, &mut gr_context);
 
         Self {
             gl,
@@ -41,32 +41,29 @@ impl SkiaGlRenderer {
             gr_context,
         }
     }
-    pub fn resize<D: GlDisplay>(
+    pub fn resize(
         &mut self,
         gl_config: &Config,
-        gl_display: &D,
         size: PhysicalSize<u32>,
     ) {
         self.resize_viewport(
             size.width.try_into().unwrap(),
             size.height.try_into().unwrap(),
         );
-        self.create_surface(gl_config, gl_display, size);
+        self.create_surface(gl_config, size);
     }
     fn resize_viewport(&self, width: i32, height: i32) {
         unsafe {
             self.gl.Viewport(0, 0, width, height);
         }
     }
-    fn create_surface<D: GlDisplay>(
+    fn create_surface(
         &mut self,
         gl_config: &Config,
-        gl_display: &D,
         size: PhysicalSize<u32>,
     ) {
         self.surface = create_skia_surface(
             gl_config,
-            gl_display,
             size,
             &self.fb_info,
             &mut self.gr_context,
@@ -81,9 +78,8 @@ impl SkiaGlRenderer {
         self.gr_context.flush(None);
     }
 }
-fn create_skia_surface<D: GlDisplay>(
+fn create_skia_surface(
     gl_config: &Config,
-    gl_display: &D,
     size: PhysicalSize<u32>,
     fb_info: &FramebufferInfo,
     gr_context: &mut skia_safe::gpu::DirectContext,
