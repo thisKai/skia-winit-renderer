@@ -25,7 +25,7 @@ pub struct SingleWindowApplication {
     not_current_gl_context: Option<NotCurrentContext>,
     state: Option<(PossiblyCurrentContext, GlWindow)>,
     window: Option<Window>,
-    event_loop: EventLoop<()>,
+    event_loop: Option<EventLoop<()>>,
 }
 impl SingleWindowApplication {
     pub fn new() -> Self {
@@ -102,107 +102,114 @@ impl SingleWindowApplication {
             not_current_gl_context,
             state: None,
             window,
-            event_loop,
+            event_loop: Some(event_loop),
         }
     }
 
-    pub fn run(self) -> ! {
-        let SingleWindowApplication {
-            gl_config,
-            gl_display,
-            mut renderer,
-            mut not_current_gl_context,
-            mut state,
-            mut window,
-            event_loop,
-        } = self;
+    pub fn run(mut self) -> ! {
+        self.event_loop
+            .take()
+            .unwrap()
+            .run(move |event, window_target, control_flow| {
+                control_flow.set_wait();
+                match event {
+                    Event::Resumed => {
+                        #[cfg(target_os = "android")]
+                        println!("Android window available");
 
-        event_loop.run(move |event, window_target, control_flow| {
-            control_flow.set_wait();
-            match event {
-                Event::Resumed => {
-                    #[cfg(target_os = "android")]
-                    println!("Android window available");
-
-                    let window = window.take().unwrap_or_else(|| {
-                        let window_builder = WindowBuilder::new().with_transparent(true);
-                        glutin_winit::finalize_window(window_target, window_builder, &gl_config)
+                        let window = self.window.take().unwrap_or_else(|| {
+                            let window_builder = WindowBuilder::new().with_transparent(true);
+                            glutin_winit::finalize_window(
+                                window_target,
+                                window_builder,
+                                &self.gl_config,
+                            )
                             .unwrap()
-                    });
-
-                    let gl_window = GlWindow::new(window, &gl_config);
-
-                    // Make it current.
-                    let gl_context = not_current_gl_context
-                        .take()
-                        .unwrap()
-                        .make_current(&gl_window.surface)
-                        .unwrap();
-
-                    // The context needs to be current for the Renderer to set up shaders and
-                    // buffers. It also performs function loading, which needs a current context on
-                    // WGL.
-                    renderer.get_or_insert_with(|| {
-                        SkiaGlRenderer::new(&gl_config, &gl_display, gl_window.window.inner_size())
-                    });
-
-                    // Try setting vsync.
-                    if let Err(res) = gl_window.surface.set_swap_interval(
-                        &gl_context,
-                        SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
-                    ) {
-                        eprintln!("Error setting vsync: {:?}", res);
-                    }
-
-                    assert!(state.replace((gl_context, gl_window)).is_none());
-                }
-                Event::Suspended => {
-                    // This event is only raised on Android, where the backing NativeWindow for a GL
-                    // Surface can appear and disappear at any moment.
-                    println!("Android window removed");
-
-                    // Destroy the GL Surface and un-current the GL Context before ndk-glue releases
-                    // the window back to the system.
-                    let (gl_context, _) = state.take().unwrap();
-                    assert!(not_current_gl_context
-                        .replace(gl_context.make_not_current().unwrap())
-                        .is_none());
-                }
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::Resized(size) => {
-                        if size.width != 0 && size.height != 0 {
-                            // Some platforms like EGL require resizing GL surface to update the size
-                            // Notable platforms here are Wayland and macOS, other don't require it
-                            // and the function is no-op, but it's wise to resize it for portability
-                            // reasons.
-                            if let Some((gl_context, gl_window)) = &state {
-                                gl_window.surface.resize(
-                                    gl_context,
-                                    NonZeroU32::new(size.width).unwrap(),
-                                    NonZeroU32::new(size.height).unwrap(),
-                                );
-                                let renderer = renderer.as_mut().unwrap();
-                                renderer.resize(&gl_config, size);
-                            }
-                        }
-                    }
-                    WindowEvent::CloseRequested => {
-                        control_flow.set_exit();
-                    }
-                    _ => (),
-                },
-                Event::RedrawRequested(_) => {
-                    if let Some((gl_context, gl_window)) = &state {
-                        let renderer = renderer.as_mut().unwrap();
-                        renderer.draw(|canvas| {
-                            canvas.draw_circle((200, 200), 50., &Paint::new(colors::CYAN, None));
                         });
 
-                        gl_window.surface.swap_buffers(gl_context).unwrap();
+                        let gl_window = GlWindow::new(window, &self.gl_config);
+
+                        // Make it current.
+                        let gl_context = self
+                            .not_current_gl_context
+                            .take()
+                            .unwrap()
+                            .make_current(&gl_window.surface)
+                            .unwrap();
+
+                        // The context needs to be current for the Renderer to set up shaders and
+                        // buffers. It also performs function loading, which needs a current context on
+                        // WGL.
+                        self.renderer.get_or_insert_with(|| {
+                            SkiaGlRenderer::new(
+                                &self.gl_config,
+                                &self.gl_display,
+                                gl_window.window.inner_size(),
+                            )
+                        });
+
+                        // Try setting vsync.
+                        if let Err(res) = gl_window.surface.set_swap_interval(
+                            &gl_context,
+                            SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
+                        ) {
+                            eprintln!("Error setting vsync: {:?}", res);
+                        }
+
+                        assert!(self.state.replace((gl_context, gl_window)).is_none());
                     }
+                    Event::Suspended => {
+                        // This event is only raised on Android, where the backing NativeWindow for a GL
+                        // Surface can appear and disappear at any moment.
+                        println!("Android window removed");
+
+                        // Destroy the GL Surface and un-current the GL Context before ndk-glue releases
+                        // the window back to the system.
+                        let (gl_context, _) = self.state.take().unwrap();
+                        assert!(self
+                            .not_current_gl_context
+                            .replace(gl_context.make_not_current().unwrap())
+                            .is_none());
+                    }
+                    Event::WindowEvent { event, .. } => match event {
+                        WindowEvent::Resized(size) => {
+                            if size.width != 0 && size.height != 0 {
+                                // Some platforms like EGL require resizing GL surface to update the size
+                                // Notable platforms here are Wayland and macOS, other don't require it
+                                // and the function is no-op, but it's wise to resize it for portability
+                                // reasons.
+                                if let Some((gl_context, gl_window)) = &self.state {
+                                    gl_window.surface.resize(
+                                        gl_context,
+                                        NonZeroU32::new(size.width).unwrap(),
+                                        NonZeroU32::new(size.height).unwrap(),
+                                    );
+                                    let renderer = self.renderer.as_mut().unwrap();
+                                    renderer.resize(&self.gl_config, size);
+                                }
+                            }
+                        }
+                        WindowEvent::CloseRequested => {
+                            control_flow.set_exit();
+                        }
+                        _ => (),
+                    },
+                    Event::RedrawRequested(_) => {
+                        if let Some((gl_context, gl_window)) = &self.state {
+                            let renderer = self.renderer.as_mut().unwrap();
+                            renderer.draw(|canvas| {
+                                canvas.draw_circle(
+                                    (200, 200),
+                                    50.,
+                                    &Paint::new(colors::CYAN, None),
+                                );
+                            });
+
+                            gl_window.surface.swap_buffers(gl_context).unwrap();
+                        }
+                    }
+                    _ => (),
                 }
-                _ => (),
-            }
-        })
+            })
     }
 }
