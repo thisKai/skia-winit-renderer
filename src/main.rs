@@ -9,9 +9,9 @@ mod app;
 mod skia;
 mod window;
 
-use crate::app::SingleWindowApplication;
+use app::MultiWindowApplication;
 
 pub fn main() {
-    let app = SingleWindowApplication::new();
+    let app = MultiWindowApplication::new();
     app.run();
 }

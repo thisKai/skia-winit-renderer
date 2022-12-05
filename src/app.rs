@@ -2,28 +2,31 @@ use std::num::NonZeroU32;
 
 use glutin::{
     config::{Config, ConfigTemplateBuilder},
-    context::{ContextApi, ContextAttributesBuilder, NotCurrentContext, PossiblyCurrentContext},
+    context::{ContextApi, ContextAttributesBuilder, NotCurrentContext},
     display::{Display, GetGlDisplay},
-    prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
+    prelude::*,
     surface::{GlSurface, SwapInterval},
 };
 use glutin_winit::DisplayBuilder;
 use raw_window_handle::HasRawWindowHandle;
 use skia_safe::{colors, Paint};
 use winit::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{EventLoop, EventLoopBuilder},
     window::{Window, WindowBuilder},
 };
 
-use crate::{skia::SkiaGlRenderer, window::GlWindow};
+use crate::{
+    skia::SkiaGlRenderer,
+    window::{GlWindow, GlWindowManager},
+};
 
 pub struct SingleWindowApplication {
     gl_config: Config,
     gl_display: Display,
     renderer: Option<SkiaGlRenderer>,
     not_current_gl_context: Option<NotCurrentContext>,
-    state: Option<(PossiblyCurrentContext, GlWindow)>,
+    state: Option<GlWindow>,
     window: Option<Window>,
     event_loop: Option<EventLoop<()>>,
 }
@@ -127,15 +130,19 @@ impl SingleWindowApplication {
                             .unwrap()
                         });
 
-                        let gl_window = GlWindow::new(window, &self.gl_config);
+                        let gl_window = GlWindow::new(
+                            window,
+                            &self.gl_config,
+                            self.not_current_gl_context.take().unwrap(),
+                        );
 
                         // Make it current.
-                        let gl_context = self
-                            .not_current_gl_context
-                            .take()
-                            .unwrap()
-                            .make_current(&gl_window.surface)
-                            .unwrap();
+                        // let gl_context = self
+                        //     .not_current_gl_context
+                        //     .take()
+                        //     .unwrap()
+                        //     .make_current(&gl_window.surface)
+                        //     .unwrap();
 
                         // The context needs to be current for the Renderer to set up shaders and
                         // buffers. It also performs function loading, which needs a current context on
@@ -150,13 +157,13 @@ impl SingleWindowApplication {
 
                         // Try setting vsync.
                         if let Err(res) = gl_window.surface.set_swap_interval(
-                            &gl_context,
+                            &gl_window.gl_context(),
                             SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
                         ) {
                             eprintln!("Error setting vsync: {:?}", res);
                         }
 
-                        assert!(self.state.replace((gl_context, gl_window)).is_none());
+                        assert!(self.state.replace(gl_window).is_none());
                     }
                     Event::Suspended => {
                         // This event is only raised on Android, where the backing NativeWindow for a GL
@@ -165,10 +172,10 @@ impl SingleWindowApplication {
 
                         // Destroy the GL Surface and un-current the GL Context before ndk-glue releases
                         // the window back to the system.
-                        let (gl_context, _) = self.state.take().unwrap();
+                        let gl_window = self.state.take().unwrap();
                         assert!(self
                             .not_current_gl_context
-                            .replace(gl_context.make_not_current().unwrap())
+                            .replace(gl_window.make_not_current())
                             .is_none());
                     }
                     Event::WindowEvent { event, .. } => match event {
@@ -178,9 +185,8 @@ impl SingleWindowApplication {
                                 // Notable platforms here are Wayland and macOS, other don't require it
                                 // and the function is no-op, but it's wise to resize it for portability
                                 // reasons.
-                                if let Some((gl_context, gl_window)) = &self.state {
-                                    gl_window.surface.resize(
-                                        gl_context,
+                                if let Some(gl_window) = &self.state {
+                                    gl_window.resize(
                                         NonZeroU32::new(size.width).unwrap(),
                                         NonZeroU32::new(size.height).unwrap(),
                                     );
@@ -195,7 +201,7 @@ impl SingleWindowApplication {
                         _ => (),
                     },
                     Event::RedrawRequested(_) => {
-                        if let Some((gl_context, gl_window)) = &self.state {
+                        if let Some(gl_window) = &self.state {
                             let renderer = self.renderer.as_mut().unwrap();
                             renderer.draw(|canvas| {
                                 canvas.draw_circle(
@@ -205,9 +211,60 @@ impl SingleWindowApplication {
                                 );
                             });
 
-                            gl_window.surface.swap_buffers(gl_context).unwrap();
+                            gl_window.swap_buffers();
                         }
                     }
+                    _ => (),
+                }
+            })
+    }
+}
+
+pub struct MultiWindowApplication {
+    window_manager: GlWindowManager,
+    event_loop: Option<EventLoop<()>>,
+}
+impl MultiWindowApplication {
+    pub fn new() -> Self {
+        let event_loop = EventLoopBuilder::new().build();
+        Self {
+            window_manager: GlWindowManager::new(&event_loop),
+            event_loop: Some(event_loop),
+        }
+    }
+    pub fn run(mut self) -> ! {
+        self.event_loop
+            .take()
+            .unwrap()
+            .run(move |event, window_target, control_flow| {
+                control_flow.set_wait();
+                match event {
+                    Event::Resumed => {
+                        self.window_manager.create_window(window_target);
+                    }
+
+                    Event::WindowEvent { window_id, event } => match event {
+                        WindowEvent::Resized(size) => self.window_manager.resize(&window_id, size),
+                        WindowEvent::KeyboardInput {
+                            device_id,
+                            input:
+                                KeyboardInput {
+                                    virtual_keycode: Some(VirtualKeyCode::Return),
+                                    state: ElementState::Released,
+                                    ..
+                                },
+                            is_synthetic,
+                        } => {
+                            self.window_manager.create_window(window_target);
+                        }
+                        WindowEvent::CloseRequested => {
+                            if self.window_manager.close_window(&window_id) {
+                                control_flow.set_exit();
+                            }
+                        }
+                        _ => (),
+                    },
+                    Event::RedrawRequested(window_id) => self.window_manager.draw(&window_id),
                     _ => (),
                 }
             })
