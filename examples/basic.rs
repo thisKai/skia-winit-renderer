@@ -1,16 +1,4 @@
-pub mod gl {
-    #![allow(clippy::all)]
-    include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
-
-    pub use Gles2 as Gl;
-}
-
-mod app;
-mod skia;
-mod window;
-
-use app::{App, AppCx};
-use window::Window;
+use decoupled_glutin_example::{run, App, AppCx, Window};
 
 struct ExampleApp;
 impl App for ExampleApp {
@@ -31,5 +19,5 @@ impl Window for MainWindow {
 }
 
 pub fn main() {
-    app::run(ExampleApp)
+    run(ExampleApp)
 }
