@@ -1,4 +1,4 @@
-use decoupled_glutin_example::{run, App, AppCx, Window};
+use skia_winit_renderer::{run, App, AppCx, Window};
 
 struct ExampleApp;
 impl App for ExampleApp {

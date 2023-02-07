@@ -1,5 +1,5 @@
 [package]
-name = "decoupled-glutin-example"
+name = "skia-winit-renderer"
 version = "0.1.0"
 edition = "2021"
 
