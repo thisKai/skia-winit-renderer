@@ -13,12 +13,12 @@ use skia_safe::{colors, Paint};
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget},
-    window::{Window, WindowBuilder},
+    window::{Window as WinitWindow, WindowBuilder},
 };
 
 use crate::{
     skia::SkiaGlRenderer,
-    window::{GlWindow, GlWindowManager, SkiaGlAppWindow},
+    window::{GlWindow, GlWindowManager, SkiaGlAppWindow, Window},
 };
 
 pub struct SingleWindowApplication {
@@ -27,7 +27,7 @@ pub struct SingleWindowApplication {
     renderer: Option<SkiaGlRenderer>,
     not_current_gl_context: Option<NotCurrentContext>,
     state: Option<GlWindow>,
-    window: Option<Window>,
+    window: Option<WinitWindow>,
     event_loop: Option<EventLoop<()>>,
 }
 impl SingleWindowApplication {
@@ -271,7 +271,7 @@ impl MultiWindowApplication {
                                 },
                             is_synthetic,
                         } => {
-                            self.window_manager.create_window(window_target);
+                            // self.window_manager.create_window(window_target);
                         }
                         WindowEvent::CloseRequested => {
                             if self.window_manager.close_window(&window_id) {
@@ -292,7 +292,9 @@ pub struct AppCx<'a> {
     app: &'a mut MultiWindowApplication,
 }
 impl<'a> AppCx<'a> {
-    pub fn create_window(&mut self) -> Rc<SkiaGlAppWindow> {
-        self.app.window_manager.create_window(self.window_target)
+    pub fn create_window<T: Window>(&mut self, window: T) -> Rc<SkiaGlAppWindow> {
+        self.app
+            .window_manager
+            .create_window(self.window_target, Box::new(window))
     }
 }

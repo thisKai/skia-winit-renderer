@@ -9,24 +9,38 @@ use glutin::{
 };
 use glutin_winit::DisplayBuilder;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use skia_safe::{colors, Paint};
+use skia_safe::Canvas;
 use winit::{
     dpi::PhysicalSize,
     event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder, WindowId},
+    window::{Window as WinitWindow, WindowBuilder, WindowId},
 };
 
 use crate::skia::SkiaGlRenderer;
+
+#[allow(unused_variables)]
+pub trait Window: 'static {
+    fn open(&mut self) {}
+    fn close(&mut self) -> bool {
+        true
+    }
+    fn draw(&self, canvas: &mut Canvas) {}
+    fn resize(&mut self, width: u32, height: u32) {}
+}
 
 pub struct GlWindow {
     gl_context: Option<PossiblyCurrentContext>,
     // XXX the surface must be dropped before the window.
     pub surface: Surface<WindowSurface>,
-    pub window: Window,
+    pub window: WinitWindow,
 }
 
 impl GlWindow {
-    pub fn new(window: Window, config: &Config, not_current_gl_context: NotCurrentContext) -> Self {
+    pub fn new(
+        window: WinitWindow,
+        config: &Config,
+        not_current_gl_context: NotCurrentContext,
+    ) -> Self {
         let (width, height): (u32, u32) = window.inner_size().into();
         let raw_window_handle = window.raw_window_handle();
         let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
@@ -84,8 +98,8 @@ impl Drop for GlWindow {
 pub struct GlWindowManager {
     gl_config: Config,
     gl_display: Display,
-    first_window: Option<Window>,
-    windows: HashMap<WindowId, Rc<SkiaGlAppWindow>>,
+    first_window: Option<WinitWindow>,
+    windows: HashMap<WindowId, (Rc<SkiaGlAppWindow>, Box<dyn Window>)>,
 }
 impl GlWindowManager {
     pub fn new(window_target: &EventLoopWindowTarget<()>) -> Self {
@@ -166,6 +180,7 @@ impl GlWindowManager {
     pub fn create_window(
         &mut self,
         window_target: &EventLoopWindowTarget<()>,
+        state: Box<dyn Window>,
     ) -> Rc<SkiaGlAppWindow> {
         #[cfg(target_os = "android")]
         println!("Android window available");
@@ -201,18 +216,19 @@ impl GlWindowManager {
             gl_window,
         });
         let id = window.gl_window.window.id();
-        self.windows.insert(id, window.clone());
+        self.windows.insert(id, (window.clone(), state));
         window
     }
-    pub fn resize(&self, id: &WindowId, size: PhysicalSize<u32>) {
+    pub fn resize(&mut self, id: &WindowId, size: PhysicalSize<u32>) {
         if size.width != 0 && size.height != 0 {
-            let window = self.windows.get(id).unwrap();
+            let (window, state) = self.windows.get_mut(id).unwrap();
             window.resize(&self.gl_config, size);
+            state.resize(size.width, size.height);
         }
     }
     pub fn draw(&self, id: &WindowId) {
-        let window = self.windows.get(id).unwrap();
-        window.draw();
+        let (window, state) = self.windows.get(id).unwrap();
+        window.draw(|canvas| state.draw(canvas));
     }
 }
 
@@ -229,12 +245,12 @@ impl SkiaGlAppWindow {
         let mut renderer = self.renderer.borrow_mut();
         renderer.resize(&gl_config, size);
     }
-    fn draw(&self) {
+    fn draw<F>(&self, f: F)
+    where
+        F: FnMut(&mut Canvas),
+    {
         self.gl_window.make_current_if_needed();
-        self.renderer.borrow_mut().draw(|canvas| {
-            canvas.draw_circle((200, 200), 50., &Paint::new(colors::CYAN, None));
-        });
-
+        self.renderer.borrow_mut().draw(f);
         self.gl_window.swap_buffers();
     }
 }
