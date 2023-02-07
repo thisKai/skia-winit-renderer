@@ -9,13 +9,17 @@ egl = ["glutin-winit/egl"]
 glx = ["glutin-winit/glx"]
 wgl = ["glutin-winit/wgl"]
 x11 = ["glutin-winit/x11"]
-wayland = ["glutin-winit/wayland", "winit/wayland-dlopen", "winit/wayland-csd-adwaita-notitle"]
+wayland = [
+    "glutin-winit/wayland",
+    "winit/wayland-dlopen",
+    "winit/wayland-csd-adwaita-notitle",
+]
 
 [dependencies]
 raw-window-handle = "0.5"
-winit = "0.27"
+winit = "0.28"
 glutin = "0.30"
-glutin-winit = "0.2"
+glutin-winit = "0.3"
 skia-safe = { version = "0.56", features = ["textlayout", "gl"] }
 
 [target.'cfg(unix)'.dependencies]
