@@ -1,4 +1,4 @@
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, rc::Rc};
 
 use glutin::{
     config::{Config, ConfigTemplateBuilder},
@@ -12,13 +12,13 @@ use raw_window_handle::HasRawWindowHandle;
 use skia_safe::{colors, Paint};
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
-    event_loop::{EventLoop, EventLoopBuilder},
+    event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget},
     window::{Window, WindowBuilder},
 };
 
 use crate::{
     skia::SkiaGlRenderer,
-    window::{GlWindow, GlWindowManager},
+    window::{GlWindow, GlWindowManager, SkiaGlAppWindow},
 };
 
 pub struct SingleWindowApplication {
@@ -220,19 +220,35 @@ impl SingleWindowApplication {
     }
 }
 
+#[allow(unused_variables)]
+pub trait App: 'static {
+    fn resume(&self, app: AppCx) {}
+}
+
+pub fn run<T: App>(app: T) -> ! {
+    let runtime = MultiWindowApplication::new();
+    runtime.start(app)
+}
+
 pub struct MultiWindowApplication {
     window_manager: GlWindowManager,
     event_loop: Option<EventLoop<()>>,
 }
 impl MultiWindowApplication {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let event_loop = EventLoopBuilder::new().build();
         Self {
             window_manager: GlWindowManager::new(&event_loop),
             event_loop: Some(event_loop),
         }
     }
-    pub fn run(mut self) -> ! {
+    fn context<'a>(&'a mut self, window_target: &'a EventLoopWindowTarget<()>) -> AppCx<'a> {
+        AppCx {
+            window_target,
+            app: self,
+        }
+    }
+    fn start<T: App>(mut self, app: T) -> ! {
         self.event_loop
             .take()
             .unwrap()
@@ -240,7 +256,7 @@ impl MultiWindowApplication {
                 control_flow.set_wait();
                 match event {
                     Event::Resumed => {
-                        self.window_manager.create_window(window_target);
+                        app.resume(self.context(window_target));
                     }
 
                     Event::WindowEvent { window_id, event } => match event {
@@ -268,5 +284,15 @@ impl MultiWindowApplication {
                     _ => (),
                 }
             })
+    }
+}
+
+pub struct AppCx<'a> {
+    window_target: &'a EventLoopWindowTarget<()>,
+    app: &'a mut MultiWindowApplication,
+}
+impl<'a> AppCx<'a> {
+    pub fn create_window(&mut self) -> Rc<SkiaGlAppWindow> {
+        self.app.window_manager.create_window(self.window_target)
     }
 }

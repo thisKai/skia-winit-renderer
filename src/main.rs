@@ -9,9 +9,15 @@ mod app;
 mod skia;
 mod window;
 
-use app::MultiWindowApplication;
+use app::{App, AppCx};
+
+struct ExampleApp;
+impl App for ExampleApp {
+    fn resume(&self, mut app: AppCx) {
+        app.create_window();
+    }
+}
 
 pub fn main() {
-    let app = MultiWindowApplication::new();
-    app.run();
+    app::run(ExampleApp)
 }
