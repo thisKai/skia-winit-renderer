@@ -188,6 +188,7 @@ impl GlWindowManager {
             let window_builder = WindowBuilder::new().with_transparent(true);
             glutin_winit::finalize_window(window_target, window_builder, &self.gl_config).unwrap()
         });
+        let size = window.inner_size();
 
         let not_current_gl_context = self.create_context(window.raw_window_handle());
 
@@ -196,11 +197,7 @@ impl GlWindowManager {
         // The context needs to be current for the Renderer to set up shaders and
         // buffers. It also performs function loading, which needs a current context on
         // WGL.
-        let renderer = SkiaGlRenderer::new(
-            &self.gl_config,
-            &self.gl_display,
-            gl_window.window.inner_size(),
-        );
+        let renderer = SkiaGlRenderer::new(&self.gl_config, &self.gl_display, size);
 
         // Try setting vsync.
         if let Err(res) = gl_window.surface.set_swap_interval(
@@ -215,6 +212,7 @@ impl GlWindowManager {
             gl_window,
         });
         let id = window.gl_window.window.id();
+        state.resize(size.width, size.height);
         state.open();
         self.windows.insert(id, (window.clone(), state));
         window
