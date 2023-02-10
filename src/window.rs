@@ -179,7 +179,7 @@ impl GlWindowManager {
     pub fn create_window(
         &mut self,
         window_target: &EventLoopWindowTarget<()>,
-        state: Box<dyn Window>,
+        mut state: Box<dyn Window>,
     ) -> Rc<SkiaGlAppWindow> {
         #[cfg(target_os = "android")]
         println!("Android window available");
@@ -215,6 +215,7 @@ impl GlWindowManager {
             gl_window,
         });
         let id = window.gl_window.window.id();
+        state.open();
         self.windows.insert(id, (window.clone(), state));
         window
     }
