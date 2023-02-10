@@ -9,5 +9,8 @@ mod app;
 mod skia;
 mod window;
 
-pub use app::{run, App, AppCx};
-pub use window::Window;
+pub use skia_safe;
+pub use {
+    app::{run, App, AppCx},
+    window::Window,
+};
