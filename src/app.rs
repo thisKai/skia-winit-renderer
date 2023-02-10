@@ -222,7 +222,7 @@ impl SingleWindowApplication {
 
 #[allow(unused_variables)]
 pub trait App: 'static {
-    fn resume(&self, app: AppCx) {}
+    fn resume(&self, cx: AppCx) {}
 }
 
 pub fn run<T: App>(app: T) -> ! {
