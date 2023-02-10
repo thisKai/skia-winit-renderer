@@ -1,5 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, num::NonZeroU32, rc::Rc};
-
+use crate::skia::SkiaGlRenderer;
 use glutin::{
     config::{Config, ConfigTemplateBuilder},
     context::{ContextApi, ContextAttributesBuilder, NotCurrentContext, PossiblyCurrentContext},
@@ -10,13 +9,13 @@ use glutin::{
 use glutin_winit::DisplayBuilder;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
+use std::{cell::RefCell, collections::HashMap, num::NonZeroU32, rc::Rc};
 use winit::{
     dpi::PhysicalSize,
-    event_loop::EventLoopWindowTarget,
+    event::WindowEvent,
+    event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Window as WinitWindow, WindowBuilder, WindowId},
 };
-
-use crate::skia::SkiaGlRenderer;
 
 #[allow(unused_variables)]
 pub trait Window: 'static {
@@ -229,6 +228,23 @@ impl GlWindowManager {
     pub fn draw(&self, id: &WindowId) {
         let (window, state) = self.windows.get(id).unwrap();
         window.draw(|canvas| state.draw(canvas));
+    }
+    pub fn handle_window_event(
+        &mut self,
+        window_id: WindowId,
+        event: WindowEvent,
+        _window_target: &EventLoopWindowTarget<()>,
+        control_flow: &mut ControlFlow,
+    ) {
+        match event {
+            WindowEvent::Resized(size) => self.resize(&window_id, size),
+            WindowEvent::CloseRequested => {
+                if self.close_window(&window_id) {
+                    control_flow.set_exit();
+                }
+            }
+            _ => (),
+        }
     }
 }
 

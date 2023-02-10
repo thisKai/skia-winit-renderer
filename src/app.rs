@@ -11,7 +11,7 @@ use glutin_winit::DisplayBuilder;
 use raw_window_handle::HasRawWindowHandle;
 use skia_safe::{colors, Paint};
 use winit::{
-    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget},
     window::{Window as WinitWindow, WindowBuilder},
 };
@@ -259,27 +259,9 @@ impl MultiWindowApplication {
                         app.resume(self.context(window_target));
                     }
 
-                    Event::WindowEvent { window_id, event } => match event {
-                        WindowEvent::Resized(size) => self.window_manager.resize(&window_id, size),
-                        WindowEvent::KeyboardInput {
-                            device_id,
-                            input:
-                                KeyboardInput {
-                                    virtual_keycode: Some(VirtualKeyCode::Return),
-                                    state: ElementState::Released,
-                                    ..
-                                },
-                            is_synthetic,
-                        } => {
-                            // self.window_manager.create_window(window_target);
-                        }
-                        WindowEvent::CloseRequested => {
-                            if self.window_manager.close_window(&window_id) {
-                                control_flow.set_exit();
-                            }
-                        }
-                        _ => (),
-                    },
+                    Event::WindowEvent { window_id, event } => self
+                        .window_manager
+                        .handle_window_event(window_id, event, window_target, control_flow),
                     Event::RedrawRequested(window_id) => self.window_manager.draw(&window_id),
                     _ => (),
                 }
