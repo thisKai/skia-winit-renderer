@@ -25,6 +25,8 @@ pub trait Window: 'static {
     }
     fn draw(&self, canvas: &mut Canvas) {}
     fn resize(&mut self, width: u32, height: u32) {}
+    fn cursor_enter(&mut self) {}
+    fn cursor_leave(&mut self) {}
 }
 
 pub struct GlWindow {
@@ -239,6 +241,14 @@ impl GlWindowManager {
         let (window, state) = self.windows.get(id).unwrap();
         window.draw(|canvas| state.draw(canvas));
     }
+    pub fn cursor_enter(&mut self, id: &WindowId) {
+        let (_window, state) = self.windows.get_mut(id).unwrap();
+        state.cursor_enter();
+    }
+    pub fn cursor_leave(&mut self, id: &WindowId) {
+        let (_window, state) = self.windows.get_mut(id).unwrap();
+        state.cursor_leave();
+    }
     pub fn handle_window_event(
         &mut self,
         window_id: WindowId,
@@ -253,6 +263,8 @@ impl GlWindowManager {
                     control_flow.set_exit();
                 }
             }
+            WindowEvent::CursorEntered { .. } => self.cursor_enter(&window_id),
+            WindowEvent::CursorLeft { .. } => self.cursor_leave(&window_id),
             _ => (),
         }
     }
