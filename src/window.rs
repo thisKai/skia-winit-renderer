@@ -222,6 +222,7 @@ impl GlWindowManager {
             let (window, state) = self.windows.get_mut(id).unwrap();
             window.resize(&self.gl_config, size);
             state.resize(size.width, size.height);
+            window.gl_window.window.request_redraw();
         }
     }
     pub fn draw(&self, id: &WindowId) {
