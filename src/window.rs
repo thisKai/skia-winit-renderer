@@ -108,7 +108,11 @@ impl GlWindowManager {
         // XXX if you don't care about running on android or so you can safely remove
         // this condition and always pass the window builder.
         let window_builder = if cfg!(wgl_backend) {
-            Some(WindowBuilder::new().with_transparent(true))
+            Some(
+                WindowBuilder::new()
+                    .with_transparent(true)
+                    .with_visible(false),
+            )
         } else {
             None
         };
@@ -185,7 +189,9 @@ impl GlWindowManager {
         println!("Android window available");
 
         let window = self.first_window.take().unwrap_or_else(|| {
-            let window_builder = WindowBuilder::new().with_transparent(true);
+            let window_builder = WindowBuilder::new()
+                .with_transparent(true)
+                .with_visible(false);
             glutin_winit::finalize_window(window_target, window_builder, &self.gl_config).unwrap()
         });
         let size = window.inner_size();
@@ -212,16 +218,20 @@ impl GlWindowManager {
             gl_window,
         });
         let id = window.gl_window.window.id();
+
         state.resize(size.width, size.height);
+
+        window.gl_window.window.set_visible(true);
         state.open();
+
         self.windows.insert(id, (window.clone(), state));
         window
     }
     pub fn resize(&mut self, id: &WindowId, size: PhysicalSize<u32>) {
         if size.width != 0 && size.height != 0 {
             let (window, state) = self.windows.get_mut(id).unwrap();
-            window.resize(&self.gl_config, size);
             state.resize(size.width, size.height);
+            window.resize(&self.gl_config, size);
             window.gl_window.window.request_redraw();
         }
     }
