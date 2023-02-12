@@ -11,7 +11,7 @@ use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
 use std::{cell::RefCell, collections::HashMap, num::NonZeroU32, rc::Rc};
 use winit::{
-    dpi::PhysicalSize,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::WindowEvent,
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Window as WinitWindow, WindowBuilder, WindowId},
@@ -27,6 +27,7 @@ pub trait Window: 'static {
     fn resize(&mut self, width: u32, height: u32) {}
     fn cursor_enter(&mut self) {}
     fn cursor_leave(&mut self) {}
+    fn cursor_move(&mut self, x: f64, y: f64) {}
 }
 
 pub struct GlWindow {
@@ -249,6 +250,10 @@ impl GlWindowManager {
         let (_window, state) = self.windows.get_mut(id).unwrap();
         state.cursor_leave();
     }
+    pub fn cursor_move(&mut self, id: &WindowId, position: PhysicalPosition<f64>) {
+        let (_window, state) = self.windows.get_mut(id).unwrap();
+        state.cursor_move(position.x, position.y)
+    }
     pub fn handle_window_event(
         &mut self,
         window_id: WindowId,
@@ -265,6 +270,7 @@ impl GlWindowManager {
             }
             WindowEvent::CursorEntered { .. } => self.cursor_enter(&window_id),
             WindowEvent::CursorLeft { .. } => self.cursor_leave(&window_id),
+            WindowEvent::CursorMoved { position, .. } => self.cursor_move(&window_id, position),
             _ => (),
         }
     }
