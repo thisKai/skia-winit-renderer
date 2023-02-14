@@ -5,9 +5,48 @@ use skia_safe::{
     gpu::{gl::FramebufferInfo, BackendRenderTarget, SurfaceOrigin},
     Canvas, Color, ColorType, Surface,
 };
+use softbuffer::GraphicsContext;
 use winit::dpi::PhysicalSize;
 
 use crate::gl::{self, types::GLint, Gl};
+
+pub struct SkiaSoftwareRenderer {
+    surface: Surface,
+    graphics_context: GraphicsContext,
+}
+impl SkiaSoftwareRenderer {
+    pub fn new(graphics_context: GraphicsContext, size: PhysicalSize<u32>) -> Self {
+        let surface =
+            Surface::new_raster_n32_premul((size.width as i32, size.height as i32)).unwrap();
+
+        Self {
+            surface,
+            graphics_context,
+        }
+    }
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+        self.surface =
+            Surface::new_raster_n32_premul((size.width as i32, size.height as i32)).unwrap();
+    }
+    pub fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
+        {
+            let canvas = self.surface.canvas();
+            canvas.clear(Color::TRANSPARENT);
+            paint(canvas);
+        }
+
+        let snapshot = self.surface.image_snapshot();
+
+        let peek = snapshot.peek_pixels().unwrap();
+        let pixels: &[u32] = peek.pixels().unwrap();
+
+        self.graphics_context.set_buffer(
+            &pixels,
+            self.surface.width() as u16,
+            self.surface.height() as u16,
+        );
+    }
+}
 
 pub struct SkiaGlRenderer {
     gl: Gl,
@@ -41,11 +80,7 @@ impl SkiaGlRenderer {
             gr_context,
         }
     }
-    pub fn resize(
-        &mut self,
-        gl_config: &Config,
-        size: PhysicalSize<u32>,
-    ) {
+    pub fn resize(&mut self, gl_config: &Config, size: PhysicalSize<u32>) {
         self.resize_viewport(
             size.width.try_into().unwrap(),
             size.height.try_into().unwrap(),
@@ -57,17 +92,8 @@ impl SkiaGlRenderer {
             self.gl.Viewport(0, 0, width, height);
         }
     }
-    fn create_surface(
-        &mut self,
-        gl_config: &Config,
-        size: PhysicalSize<u32>,
-    ) {
-        self.surface = create_skia_surface(
-            gl_config,
-            size,
-            &self.fb_info,
-            &mut self.gr_context,
-        );
+    fn create_surface(&mut self, gl_config: &Config, size: PhysicalSize<u32>) {
+        self.surface = create_skia_surface(gl_config, size, &self.fb_info, &mut self.gr_context);
     }
     pub fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
         {

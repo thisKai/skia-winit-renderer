@@ -1,4 +1,4 @@
-use crate::skia::SkiaGlRenderer;
+use crate::skia::{SkiaGlRenderer, SkiaSoftwareRenderer};
 use glutin::{
     config::{Config, ConfigTemplateBuilder},
     context::{ContextApi, ContextAttributesBuilder, NotCurrentContext, PossiblyCurrentContext},
@@ -9,6 +9,7 @@ use glutin::{
 use glutin_winit::DisplayBuilder;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
+use softbuffer::GraphicsContext;
 use std::{cell::RefCell, collections::HashMap, num::NonZeroU32, rc::Rc};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -28,6 +29,67 @@ pub trait Window: 'static {
     fn cursor_enter(&mut self) {}
     fn cursor_leave(&mut self) {}
     fn cursor_move(&mut self, x: f64, y: f64) {}
+}
+
+pub struct SoftwareRenderedWindowManager {
+    windows: HashMap<WindowId, (Rc<SkiaSoftwareRenderedWindow>, Box<dyn Window>)>,
+}
+impl SoftwareRenderedWindowManager {
+    pub fn new() -> Self {
+        Self {
+            windows: HashMap::new(),
+        }
+    }
+    pub fn close_window(&mut self, id: &WindowId) -> bool {
+        self.windows.remove(&id);
+        self.windows.is_empty()
+    }
+    pub fn create_window(
+        &mut self,
+        window_target: &EventLoopWindowTarget<()>,
+        mut state: Box<dyn Window>,
+    ) -> Rc<SkiaSoftwareRenderedWindow> {
+        let window = WindowBuilder::new()
+            .with_transparent(true)
+            .with_visible(false)
+            .build(window_target)
+            .unwrap();
+        let size = window.inner_size();
+
+        let window = Rc::new(SkiaSoftwareRenderedWindow::new(window, window_target));
+        let id = window.window.id();
+
+        state.resize(size.width, size.height);
+
+        window.window.set_visible(true);
+        state.open();
+
+        self.windows.insert(id, (window.clone(), state));
+        window
+    }
+}
+
+pub struct SkiaSoftwareRenderedWindow {
+    renderer: RefCell<SkiaSoftwareRenderer>,
+    window: WinitWindow,
+}
+impl SkiaSoftwareRenderedWindow {
+    fn new(window: WinitWindow, display: &EventLoopWindowTarget<()>) -> Self {
+        let gc = unsafe { GraphicsContext::new(&window, display).unwrap() };
+        let renderer = RefCell::new(SkiaSoftwareRenderer::new(gc, window.inner_size()));
+
+        Self { renderer, window }
+    }
+    fn resize(&self, size: PhysicalSize<u32>) {
+        let mut renderer = self.renderer.borrow_mut();
+        renderer.resize(size);
+    }
+    fn draw<F>(&self, f: F)
+    where
+        F: FnMut(&mut Canvas),
+    {
+        self.renderer.borrow_mut().draw(f);
+    }
 }
 
 pub struct GlWindow {
