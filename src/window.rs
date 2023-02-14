@@ -1,4 +1,7 @@
-use crate::skia::{SkiaGlRenderer, SkiaSoftwareRenderer};
+use crate::{
+    gl::Gl,
+    skia::{SkiaGlRenderer, SkiaSoftwareRenderer},
+};
 use glutin::{
     config::{Config, ConfigTemplateBuilder},
     context::{ContextApi, ContextAttributesBuilder, NotCurrentContext, PossiblyCurrentContext},
@@ -10,7 +13,7 @@ use glutin_winit::DisplayBuilder;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
 use softbuffer::GraphicsContext;
-use std::{cell::RefCell, collections::HashMap, num::NonZeroU32, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, ffi::CString, num::NonZeroU32, rc::Rc};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::WindowEvent,
@@ -282,8 +285,8 @@ impl SkiaWinitWindow for SkiaGlWinitWindow {
         // buffers. It also performs function loading, which needs a current context on
         // WGL.
         let renderer = SkiaGlRenderer::new(
+            &window_manager_state.gl,
             &window_manager_state.gl_config,
-            &window_manager_state.gl_display,
             size,
         );
 
@@ -306,6 +309,10 @@ impl SkiaWinitWindow for SkiaGlWinitWindow {
             NonZeroU32::new(size.width).unwrap(),
             NonZeroU32::new(size.height).unwrap(),
         );
+        window_manager_state.resize_viewport(
+            size.width.try_into().unwrap(),
+            size.height.try_into().unwrap(),
+        );
         let mut renderer = self.renderer.borrow_mut();
         renderer.resize(&window_manager_state.gl_config, size);
     }
@@ -323,6 +330,7 @@ impl SkiaWinitWindow for SkiaGlWinitWindow {
 pub struct GlWindowManagerState {
     gl_config: Config,
     gl_display: Display,
+    gl: Gl,
     first_window: Option<WinitWindow>,
 }
 impl GlWindowManagerState {
@@ -373,9 +381,15 @@ impl GlWindowManagerState {
         // can query it from the config.
         let gl_display = gl_config.display();
 
+        let gl = Gl::load_with(|symbol| {
+            let symbol = CString::new(symbol).unwrap();
+            gl_display.get_proc_address(symbol.as_c_str()).cast()
+        });
+
         Self {
             gl_config,
             gl_display,
+            gl,
             first_window,
         }
     }
@@ -398,6 +412,11 @@ impl GlWindowManagerState {
                         .create_context(&self.gl_config, &fallback_context_attributes)
                         .expect("failed to create context")
                 })
+        }
+    }
+    fn resize_viewport(&self, width: i32, height: i32) {
+        unsafe {
+            self.gl.Viewport(0, 0, width, height);
         }
     }
 }

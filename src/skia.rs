@@ -1,5 +1,3 @@
-use std::ffi::CString;
-
 use glutin::{config::Config, prelude::*};
 use skia_safe::{
     gpu::{gl::FramebufferInfo, BackendRenderTarget, SurfaceOrigin},
@@ -49,17 +47,12 @@ impl SkiaSoftwareRenderer {
 }
 
 pub struct SkiaGlRenderer {
-    gl: Gl,
     fb_info: FramebufferInfo,
     surface: Surface,
     gr_context: skia_safe::gpu::DirectContext,
 }
 impl SkiaGlRenderer {
-    pub fn new<D: GlDisplay>(gl_config: &Config, gl_display: &D, size: PhysicalSize<u32>) -> Self {
-        let gl = Gl::load_with(|symbol| {
-            let symbol = CString::new(symbol).unwrap();
-            gl_display.get_proc_address(symbol.as_c_str()).cast()
-        });
+    pub fn new(gl: &Gl, gl_config: &Config, size: PhysicalSize<u32>) -> Self {
         let mut gr_context = skia_safe::gpu::DirectContext::new_gl(None, None).unwrap();
 
         let fb_info = {
@@ -74,25 +67,12 @@ impl SkiaGlRenderer {
         let surface = create_skia_surface(gl_config, size, &fb_info, &mut gr_context);
 
         Self {
-            gl,
             fb_info,
             surface,
             gr_context,
         }
     }
     pub fn resize(&mut self, gl_config: &Config, size: PhysicalSize<u32>) {
-        self.resize_viewport(
-            size.width.try_into().unwrap(),
-            size.height.try_into().unwrap(),
-        );
-        self.create_surface(gl_config, size);
-    }
-    fn resize_viewport(&self, width: i32, height: i32) {
-        unsafe {
-            self.gl.Viewport(0, 0, width, height);
-        }
-    }
-    fn create_surface(&mut self, gl_config: &Config, size: PhysicalSize<u32>) {
         self.surface = create_skia_surface(gl_config, size, &self.fb_info, &mut self.gr_context);
     }
     pub fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
