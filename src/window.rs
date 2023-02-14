@@ -13,7 +13,7 @@ use glutin_winit::DisplayBuilder;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
 use softbuffer::GraphicsContext;
-use std::{collections::HashMap, ffi::CString, num::NonZeroU32};
+use std::{collections::HashMap, error::Error, ffi::CString, num::NonZeroU32};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::WindowEvent,
@@ -52,6 +52,50 @@ pub trait SkiaWinitWindow {
     fn draw<F>(&mut self, f: F)
     where
         F: FnMut(&mut Canvas);
+}
+
+pub enum SkiaAutoWindowManager {
+    SoftwareRendered(SkiaWinitWindowManager<SkiaSoftwareRenderedWinitWindow>),
+    Gl(SkiaWinitWindowManager<SkiaGlWinitWindow>),
+}
+impl SkiaAutoWindowManager {
+    pub fn new(window_target: &EventLoopWindowTarget<()>) -> Self {
+        GlWindowManagerState::new(&window_target)
+            .map(|state| Self::Gl(WinitWindowManager::new(state)))
+            .unwrap_or_else(|_| Self::SoftwareRendered(WinitWindowManager::new(())))
+    }
+    pub fn draw(&mut self, id: &WindowId) {
+        match self {
+            SkiaAutoWindowManager::SoftwareRendered(wm) => wm.draw(id),
+            SkiaAutoWindowManager::Gl(wm) => wm.draw(id),
+        }
+    }
+    pub fn create_window(
+        &mut self,
+        window_target: &EventLoopWindowTarget<()>,
+        state: Box<dyn Window>,
+    ) -> WindowId {
+        match self {
+            SkiaAutoWindowManager::SoftwareRendered(wm) => wm.create_window(window_target, state),
+            SkiaAutoWindowManager::Gl(wm) => wm.create_window(window_target, state),
+        }
+    }
+    pub fn handle_window_event(
+        &mut self,
+        window_id: WindowId,
+        event: WindowEvent,
+        window_target: &EventLoopWindowTarget<()>,
+        control_flow: &mut ControlFlow,
+    ) {
+        match self {
+            SkiaAutoWindowManager::SoftwareRendered(wm) => {
+                wm.handle_window_event(window_id, event, window_target, control_flow)
+            }
+            SkiaAutoWindowManager::Gl(wm) => {
+                wm.handle_window_event(window_id, event, window_target, control_flow)
+            }
+        }
+    }
 }
 
 pub type SkiaWinitWindowManager<W> =
@@ -340,7 +384,7 @@ pub struct GlWindowManagerState {
     first_window: Option<WinitWindow>,
 }
 impl GlWindowManagerState {
-    pub fn new(window_target: &EventLoopWindowTarget<()>) -> Self {
+    pub fn new(window_target: &EventLoopWindowTarget<()>) -> Result<Self, Box<dyn Error>> {
         // Only windows requires the window to be present before creating the display.
         // Other platforms don't really need one.
         //
@@ -362,8 +406,8 @@ impl GlWindowManagerState {
 
         let display_builder = DisplayBuilder::new().with_window_builder(window_builder);
 
-        let (first_window, gl_config) = display_builder
-            .build(&window_target, template, |configs| {
+        let (first_window, gl_config) =
+            display_builder.build(&window_target, template, |configs| {
                 // Find the config with the maximum number of samples, so our triangle will
                 // be smooth.
                 configs
@@ -378,8 +422,7 @@ impl GlWindowManagerState {
                         }
                     })
                     .unwrap()
-            })
-            .unwrap();
+            })?;
 
         println!("Picked a config with {} samples", gl_config.num_samples());
 
@@ -392,12 +435,12 @@ impl GlWindowManagerState {
             gl_display.get_proc_address(symbol.as_c_str()).cast()
         });
 
-        Self {
+        Ok(Self {
             gl_config,
             gl_display,
             gl,
             first_window,
-        }
+        })
     }
     fn create_context(&self, raw_window_handle: RawWindowHandle) -> NotCurrentContext {
         // The context creation part. It can be created before surface and that's how
