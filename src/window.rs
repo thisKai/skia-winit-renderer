@@ -13,7 +13,7 @@ use glutin_winit::DisplayBuilder;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
 use softbuffer::GraphicsContext;
-use std::{cell::RefCell, collections::HashMap, ffi::CString, num::NonZeroU32, rc::Rc};
+use std::{collections::HashMap, ffi::CString, num::NonZeroU32};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::WindowEvent,
@@ -43,9 +43,13 @@ pub trait SkiaWinitWindow {
         window_target: &EventLoopWindowTarget<()>,
     ) -> Self;
 
-    fn resize(&self, window_manager_state: &mut Self::WindowManagerState, size: PhysicalSize<u32>);
+    fn resize(
+        &mut self,
+        window_manager_state: &mut Self::WindowManagerState,
+        size: PhysicalSize<u32>,
+    );
 
-    fn draw<F>(&self, f: F)
+    fn draw<F>(&mut self, f: F)
     where
         F: FnMut(&mut Canvas);
 }
@@ -83,8 +87,8 @@ impl<W, S> WinitWindowManager<W, S> {
     }
 }
 impl<W: SkiaWinitWindow> WinitWindowManager<W, W::WindowManagerState> {
-    pub fn draw(&self, id: &WindowId) {
-        let (window, state) = self.windows.get(id).unwrap();
+    pub fn draw(&mut self, id: &WindowId) {
+        let (window, state) = self.windows.get_mut(id).unwrap();
         window.draw(|canvas| state.draw(canvas));
     }
     pub fn create_window(
@@ -136,7 +140,7 @@ impl<W: SkiaWinitWindow> WinitWindowManager<W, W::WindowManagerState> {
 }
 
 pub struct SkiaSoftwareRenderedWinitWindow {
-    renderer: RefCell<SkiaSoftwareRenderer>,
+    renderer: SkiaSoftwareRenderer,
     window: WinitWindow,
 }
 
@@ -155,21 +159,20 @@ impl SkiaWinitWindow for SkiaSoftwareRenderedWinitWindow {
             .unwrap();
 
         let gc = unsafe { GraphicsContext::new(&window, window_target).unwrap() };
-        let renderer = RefCell::new(SkiaSoftwareRenderer::new(gc, window.inner_size()));
+        let renderer = SkiaSoftwareRenderer::new(gc, window.inner_size());
 
         Self { renderer, window }
     }
 
-    fn resize(&self, _: &mut Self::WindowManagerState, size: PhysicalSize<u32>) {
-        let mut renderer = self.renderer.borrow_mut();
-        renderer.resize(size);
+    fn resize(&mut self, _: &mut Self::WindowManagerState, size: PhysicalSize<u32>) {
+        self.renderer.resize(size);
     }
 
-    fn draw<F>(&self, f: F)
+    fn draw<F>(&mut self, f: F)
     where
         F: FnMut(&mut Canvas),
     {
-        self.renderer.borrow_mut().draw(f);
+        self.renderer.draw(f);
     }
 }
 
@@ -241,7 +244,7 @@ impl Drop for GlWinitWindow {
 }
 
 pub struct SkiaGlWinitWindow {
-    renderer: RefCell<SkiaGlRenderer>,
+    renderer: SkiaGlRenderer,
     gl_window: GlWinitWindow,
 }
 
@@ -299,12 +302,16 @@ impl SkiaWinitWindow for SkiaGlWinitWindow {
         }
 
         SkiaGlWinitWindow {
-            renderer: RefCell::new(renderer),
+            renderer,
             gl_window,
         }
     }
 
-    fn resize(&self, window_manager_state: &mut Self::WindowManagerState, size: PhysicalSize<u32>) {
+    fn resize(
+        &mut self,
+        window_manager_state: &mut Self::WindowManagerState,
+        size: PhysicalSize<u32>,
+    ) {
         self.gl_window.resize(
             NonZeroU32::new(size.width).unwrap(),
             NonZeroU32::new(size.height).unwrap(),
@@ -313,16 +320,15 @@ impl SkiaWinitWindow for SkiaGlWinitWindow {
             size.width.try_into().unwrap(),
             size.height.try_into().unwrap(),
         );
-        let mut renderer = self.renderer.borrow_mut();
-        renderer.resize(&window_manager_state.gl_config, size);
+        self.renderer.resize(&window_manager_state.gl_config, size);
     }
 
-    fn draw<F>(&self, f: F)
+    fn draw<F>(&mut self, f: F)
     where
         F: FnMut(&mut Canvas),
     {
         self.gl_window.make_current_if_needed();
-        self.renderer.borrow_mut().draw(f);
+        self.renderer.draw(f);
         self.gl_window.swap_buffers();
     }
 }
