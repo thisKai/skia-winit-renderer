@@ -55,7 +55,7 @@ pub type SkiaWinitWindowManager<W> =
 
 pub struct WinitWindowManager<W, S = ()> {
     state: S,
-    windows: HashMap<WindowId, (Rc<W>, Box<dyn Window>)>,
+    windows: HashMap<WindowId, (W, Box<dyn Window>)>,
 }
 impl<W, S> WinitWindowManager<W, S> {
     pub fn new(state: S) -> Self {
@@ -91,8 +91,8 @@ impl<W: SkiaWinitWindow> WinitWindowManager<W, W::WindowManagerState> {
         &mut self,
         window_target: &EventLoopWindowTarget<()>,
         mut state: Box<dyn Window>,
-    ) -> Rc<W> {
-        let window = Rc::new(W::create(&mut self.state, window_target));
+    ) -> WindowId {
+        let window = W::create(&mut self.state, window_target);
         let id = window.winit_window().id();
 
         let size = window.winit_window().inner_size();
@@ -102,8 +102,8 @@ impl<W: SkiaWinitWindow> WinitWindowManager<W, W::WindowManagerState> {
         window.winit_window().set_visible(true);
         state.open();
 
-        self.windows.insert(id, (window.clone(), state));
-        window
+        self.windows.insert(id, (window, state));
+        id
     }
     pub fn resize(&mut self, id: &WindowId, size: PhysicalSize<u32>) {
         if size.width != 0 && size.height != 0 {
