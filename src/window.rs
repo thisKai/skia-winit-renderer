@@ -378,6 +378,11 @@ impl SkiaWinitWindow for SkiaGlWinitWindow {
         self.gl_window.swap_buffers();
     }
 }
+impl Drop for SkiaGlWinitWindow {
+    fn drop(&mut self) {
+        self.gl_window.make_current_if_needed();
+    }
+}
 
 pub struct GlWindowManagerState {
     gl_config: Config,
