@@ -4,7 +4,9 @@ use crate::{
 };
 use glutin::{
     config::{Config, ConfigTemplateBuilder},
-    context::{ContextApi, ContextAttributesBuilder, NotCurrentContext, PossiblyCurrentContext},
+    context::{
+        ContextApi, ContextAttributesBuilder, NotCurrentContext, PossiblyCurrentContext, Version,
+    },
     display::{Display, GetGlDisplay},
     prelude::*,
     surface::{GlSurface, Surface, SurfaceAttributesBuilder, SwapInterval, WindowSurface},
@@ -402,7 +404,9 @@ impl GlWindowManagerState {
 
         // The template will match only the configurations supporting rendering to
         // windows.
-        let template = ConfigTemplateBuilder::new().with_alpha_size(8);
+        let template = ConfigTemplateBuilder::new()
+            .with_alpha_size(8)
+            .with_transparency(cfg!(cgl_backend));
 
         let display_builder = DisplayBuilder::new().with_window_builder(window_builder);
 
@@ -453,13 +457,24 @@ impl GlWindowManagerState {
         let fallback_context_attributes = ContextAttributesBuilder::new()
             .with_context_api(ContextApi::Gles(None))
             .build(Some(raw_window_handle));
+
+        // There are also some old devices that support neither modern OpenGL nor GLES.
+        // To support these we can try and create a 2.1 context.
+        let legacy_context_attributes = ContextAttributesBuilder::new()
+            .with_context_api(ContextApi::OpenGl(Some(Version::new(2, 1))))
+            .build(Some(raw_window_handle));
+
         unsafe {
             self.gl_display
                 .create_context(&self.gl_config, &context_attributes)
                 .unwrap_or_else(|_| {
                     self.gl_display
                         .create_context(&self.gl_config, &fallback_context_attributes)
-                        .expect("failed to create context")
+                        .unwrap_or_else(|_| {
+                            self.gl_display
+                                .create_context(&self.gl_config, &legacy_context_attributes)
+                                .expect("failed to create context")
+                        })
                 })
         }
     }
