@@ -18,7 +18,9 @@ use winit::{
 
 use crate::{
     skia::SkiaGlRenderer,
-    window::{GlWindow, GlWindowManager, SkiaGlAppWindow, Window},
+    window::{
+        GlWindowManagerState, GlWinitWindow, SkiaGlWinitWindow, SkiaWinitWindowManager, Window,
+    },
 };
 
 pub struct SingleWindowApplication {
@@ -26,7 +28,7 @@ pub struct SingleWindowApplication {
     gl_display: Display,
     renderer: Option<SkiaGlRenderer>,
     not_current_gl_context: Option<NotCurrentContext>,
-    state: Option<GlWindow>,
+    state: Option<GlWinitWindow>,
     window: Option<WinitWindow>,
     event_loop: Option<EventLoop<()>>,
 }
@@ -130,7 +132,7 @@ impl SingleWindowApplication {
                             .unwrap()
                         });
 
-                        let gl_window = GlWindow::new(
+                        let gl_window = GlWinitWindow::new(
                             window,
                             &self.gl_config,
                             self.not_current_gl_context.take().unwrap(),
@@ -172,7 +174,7 @@ impl SingleWindowApplication {
 
                         // Destroy the GL Surface and un-current the GL Context before ndk-glue releases
                         // the window back to the system.
-                        let gl_window = self.state.take().unwrap();
+                        let mut gl_window = self.state.take().unwrap();
                         assert!(self
                             .not_current_gl_context
                             .replace(gl_window.make_not_current())
@@ -231,14 +233,14 @@ pub fn run<T: App>(app: T) -> ! {
 }
 
 pub struct MultiWindowApplication {
-    window_manager: GlWindowManager,
+    window_manager: SkiaWinitWindowManager<SkiaGlWinitWindow>,
     event_loop: Option<EventLoop<()>>,
 }
 impl MultiWindowApplication {
     fn new() -> Self {
         let event_loop = EventLoopBuilder::new().build();
         Self {
-            window_manager: GlWindowManager::new(&event_loop),
+            window_manager: SkiaWinitWindowManager::new(GlWindowManagerState::new(&event_loop)),
             event_loop: Some(event_loop),
         }
     }
@@ -274,9 +276,9 @@ pub struct AppCx<'a> {
     app: &'a mut MultiWindowApplication,
 }
 impl<'a> AppCx<'a> {
-    pub fn create_window<T: Window>(&mut self, window: T) -> Rc<SkiaGlAppWindow> {
+    pub fn spawn_window<T: Window>(&mut self, window: T) {
         self.app
             .window_manager
-            .create_window(self.window_target, Box::new(window))
+            .create_window(self.window_target, Box::new(window));
     }
 }

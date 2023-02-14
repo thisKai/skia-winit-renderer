@@ -3,7 +3,8 @@ use skia_winit_renderer::{run, App, AppCx, Window};
 struct ExampleApp;
 impl App for ExampleApp {
     fn resume(&self, mut cx: AppCx) {
-        cx.create_window(MainWindow);
+        cx.spawn_window(MainWindow);
+        cx.spawn_window(MainWindow);
     }
 }
 
