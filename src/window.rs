@@ -147,10 +147,10 @@ impl<W: SkiaWinitWindow> WinitWindowManager<W, W::WindowManagerState> {
 
         let size = window.winit_window().inner_size();
 
+        state.open();
         state.resize(size.width, size.height);
 
         window.winit_window().set_visible(true);
-        state.open();
 
         self.windows.insert(id, (window, state));
         id
