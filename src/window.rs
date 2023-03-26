@@ -5,7 +5,7 @@ use crate::{
 use skia_safe::Canvas;
 use std::num::NonZeroU32;
 use winit::{
-    dpi::PhysicalSize,
+    dpi::{PhysicalPosition, PhysicalSize},
     window::{Window as WinitWindow, WindowId},
 };
 
@@ -16,10 +16,10 @@ pub trait Window: 'static {
         true
     }
     fn draw(&self, canvas: &mut Canvas) {}
-    fn resize(&mut self, width: u32, height: u32) {}
+    fn resize(&mut self, size: PhysicalSize<u32>) {}
     fn cursor_enter(&mut self) {}
     fn cursor_leave(&mut self) {}
-    fn cursor_move(&mut self, x: f64, y: f64) {}
+    fn cursor_move(&mut self, position: PhysicalPosition<f64>) {}
 }
 
 pub(crate) trait SkiaWinitWindow {

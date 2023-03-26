@@ -87,7 +87,7 @@ impl WindowManager {
             }
         };
 
-        window_state.resize(size.width, size.height);
+        window_state.resize(size);
 
         if size.width != 0 && size.height != 0 {
             winit_window.request_redraw();
@@ -120,7 +120,7 @@ impl WindowManager {
     }
     pub fn cursor_move(&mut self, id: &WindowId, position: PhysicalPosition<f64>) {
         let (_window, state) = self.get_window_mut(id).unwrap();
-        state.cursor_move(position.x, position.y)
+        state.cursor_move(position)
     }
 
     fn get_window_mut(
@@ -228,7 +228,7 @@ impl WindowManager {
         let size = winit_window.inner_size();
 
         state.open();
-        state.resize(size.width, size.height);
+        state.resize(size);
 
         winit_window.set_visible(true);
     }
