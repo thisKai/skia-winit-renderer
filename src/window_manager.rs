@@ -13,7 +13,7 @@ use std::{collections::HashMap, num::NonZeroU32};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     error::OsError,
-    event::WindowEvent,
+    event::{MouseScrollDelta, TouchPhase, WindowEvent},
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Window as WinitWindow, WindowBuilder, WindowId},
 };
@@ -62,6 +62,9 @@ impl WindowManager {
             WindowEvent::CursorEntered { .. } => self.cursor_enter(&window_id),
             WindowEvent::CursorLeft { .. } => self.cursor_leave(&window_id),
             WindowEvent::CursorMoved { position, .. } => self.cursor_move(&window_id, position),
+            WindowEvent::MouseWheel { delta, phase, .. } => {
+                self.mouse_wheel(&window_id, delta, phase)
+            }
             _ => (),
         }
     }
@@ -120,6 +123,10 @@ impl WindowManager {
     pub fn cursor_move(&mut self, id: &WindowId, position: PhysicalPosition<f64>) {
         let (_window, state) = self.get_window_mut(id).unwrap();
         state.cursor_move(position)
+    }
+    pub fn mouse_wheel(&mut self, id: &WindowId, delta: MouseScrollDelta, phase: TouchPhase) {
+        let (_window, state) = self.get_window_mut(id).unwrap();
+        state.mouse_wheel(delta, phase);
     }
 
     fn get_window_mut(
