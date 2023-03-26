@@ -8,12 +8,12 @@ use winit::dpi::PhysicalSize;
 
 use crate::gl::{self, types::GLint, Gl};
 
-pub struct SkiaSoftwareRenderer {
+pub(crate) struct SkiaSoftwareRenderer {
     surface: Surface,
     graphics_context: GraphicsContext,
 }
 impl SkiaSoftwareRenderer {
-    pub fn new(graphics_context: GraphicsContext, size: PhysicalSize<u32>) -> Self {
+    pub(crate) fn new(graphics_context: GraphicsContext, size: PhysicalSize<u32>) -> Self {
         let surface =
             Surface::new_raster_n32_premul((size.width as i32, size.height as i32)).unwrap();
 
@@ -22,11 +22,11 @@ impl SkiaSoftwareRenderer {
             graphics_context,
         }
     }
-    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+    pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
         self.surface =
             Surface::new_raster_n32_premul((size.width as i32, size.height as i32)).unwrap();
     }
-    pub fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
+    pub(crate) fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
         {
             let canvas = self.surface.canvas();
             canvas.clear(Color::TRANSPARENT);
@@ -46,13 +46,13 @@ impl SkiaSoftwareRenderer {
     }
 }
 
-pub struct SkiaGlRenderer {
+pub(crate) struct SkiaGlRenderer {
     fb_info: FramebufferInfo,
     surface: Surface,
     gr_context: skia_safe::gpu::DirectContext,
 }
 impl SkiaGlRenderer {
-    pub fn new(gl: &Gl, gl_config: &Config, size: PhysicalSize<u32>) -> Self {
+    pub(crate) fn new(gl: &Gl, gl_config: &Config, size: PhysicalSize<u32>) -> Self {
         let mut gr_context = skia_safe::gpu::DirectContext::new_gl(None, None).unwrap();
 
         let fb_info = {
@@ -72,10 +72,10 @@ impl SkiaGlRenderer {
             gr_context,
         }
     }
-    pub fn resize(&mut self, gl_config: &Config, size: PhysicalSize<u32>) {
+    pub(crate) fn resize(&mut self, gl_config: &Config, size: PhysicalSize<u32>) {
         self.surface = create_skia_surface(gl_config, size, &self.fb_info, &mut self.gr_context);
     }
-    pub fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
+    pub(crate) fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
         {
             let canvas = self.surface.canvas();
             canvas.clear(Color::TRANSPARENT);

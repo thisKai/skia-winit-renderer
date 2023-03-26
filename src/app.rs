@@ -1,4 +1,4 @@
-use crate::window::{SkiaAutoWindowManager, Window};
+use crate::{window::Window, window_manager::WindowManager};
 use winit::{
     event::Event,
     event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget},
@@ -15,14 +15,14 @@ pub fn run<T: App>(app: T) -> ! {
 }
 
 pub struct MultiWindowApplication {
-    window_manager: SkiaAutoWindowManager,
+    window_manager: WindowManager,
     event_loop: Option<EventLoop<()>>,
 }
 impl MultiWindowApplication {
     fn new() -> Self {
         let event_loop = EventLoopBuilder::new().build();
         Self {
-            window_manager: SkiaAutoWindowManager::new(&event_loop),
+            window_manager: WindowManager::new(),
             event_loop: Some(event_loop),
         }
     }

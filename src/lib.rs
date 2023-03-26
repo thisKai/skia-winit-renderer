@@ -1,13 +1,8 @@
-pub(crate) mod gl {
-    #![allow(clippy::all)]
-    include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
-
-    pub(crate) use Gles2 as Gl;
-}
-
 mod app;
+mod gl;
 mod skia;
 mod window;
+mod window_manager;
 
 pub use skia_safe;
 pub use {
