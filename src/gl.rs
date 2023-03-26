@@ -92,6 +92,7 @@ pub(crate) struct GlWindowManagerState {
 impl GlWindowManagerState {
     pub(crate) fn create_with_first_window(
         window_target: &EventLoopWindowTarget<()>,
+        window_builder: &WindowBuilder,
     ) -> Result<(Self, Option<WinitWindow>), Box<dyn Error>> {
         // Only windows requires the window to be present before creating the display.
         // Other platforms don't really need one.
@@ -99,11 +100,7 @@ impl GlWindowManagerState {
         // XXX if you don't care about running on android or so you can safely remove
         // this condition and always pass the window builder.
         let window_builder = if cfg!(wgl_backend) {
-            Some(
-                WindowBuilder::new()
-                    .with_transparent(true)
-                    .with_visible(false),
-            )
+            Some(window_builder.clone())
         } else {
             None
         };

@@ -3,12 +3,17 @@ use crate::{
     skia::{SkiaGlRenderer, SkiaSoftwareRenderer},
     window::{GlWindow, SkiaWinitWindow, SoftwareWindow, Window},
 };
-use glutin::surface::{GlSurface, SwapInterval};
+use glutin::{
+    config::Config,
+    prelude::GlConfig,
+    surface::{GlSurface, SwapInterval},
+};
 use raw_window_handle::HasRawWindowHandle;
 use softbuffer::GraphicsContext;
 use std::{collections::HashMap, num::NonZeroU32};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
+    error::OsError,
     event::WindowEvent,
     event_loop::{ControlFlow, EventLoopWindowTarget},
     window::{Window as WinitWindow, WindowBuilder, WindowId},
@@ -140,19 +145,26 @@ impl WindowManager {
     pub(crate) fn create_window(
         &mut self,
         window_target: &EventLoopWindowTarget<()>,
+        window_builder: WindowBuilder,
         mut window_state: Box<dyn Window>,
     ) -> WindowId {
         match &mut self.state {
             state @ WindowManagerState::Init => {
-                let gl_state_and_first_window = GlWindowManagerState::create_with_first_window(
-                    window_target,
-                )
-                .and_then(|(mut gl_state, first_window)| {
-                    let window =
-                        Self::create_gl_window(window_target, &mut gl_state, first_window)?;
+                let gl_state_and_first_window =
+                    GlWindowManagerState::create_with_first_window(window_target, &window_builder)
+                        .map_err(|err| (err, None))
+                        .and_then(|(mut gl_state, first_window)| {
+                            let window = Self::create_gl_window(
+                                window_target,
+                                &mut gl_state,
+                                first_window
+                                    .map(InitWindow::First)
+                                    .unwrap_or(InitWindow::Other(window_builder.clone())),
+                            )
+                            .map_err(|(err, window)| (err.into(), Some(window)))?;
 
-                    Ok((gl_state, window))
-                });
+                            Ok((gl_state, window))
+                        });
 
                 match gl_state_and_first_window {
                     Ok((gl_state, window)) => {
@@ -169,8 +181,13 @@ impl WindowManager {
                         };
                         id
                     }
-                    Err(_) => {
-                        let window = Self::create_software_window(window_target);
+                    Err((_err, window)) => {
+                        let window = Self::create_software_window(
+                            window_target,
+                            window
+                                .map(InitWindow::First)
+                                .unwrap_or(InitWindow::Other(window_builder)),
+                        );
                         let id = window.id();
 
                         let mut windows = HashMap::new();
@@ -184,7 +201,8 @@ impl WindowManager {
                 }
             }
             WindowManagerState::Software { windows } => {
-                let window = Self::create_software_window(window_target);
+                let window =
+                    Self::create_software_window(window_target, InitWindow::Other(window_builder));
                 let id = window.id();
 
                 Self::init_window(window.winit_window(), &mut *window_state);
@@ -193,7 +211,9 @@ impl WindowManager {
                 id
             }
             WindowManagerState::Gl { state, windows } => {
-                let window = Self::create_gl_window(window_target, state, None).unwrap();
+                let window =
+                    Self::create_gl_window(window_target, state, InitWindow::Other(window_builder))
+                        .unwrap();
                 let id = window.id();
 
                 Self::init_window(window.winit_window(), &mut *window_state);
@@ -213,12 +233,11 @@ impl WindowManager {
         winit_window.set_visible(true);
     }
 
-    fn create_software_window(window_target: &EventLoopWindowTarget<()>) -> SoftwareWindow {
-        let window = WindowBuilder::new()
-            .with_transparent(true)
-            .with_visible(false)
-            .build(window_target)
-            .unwrap();
+    fn create_software_window(
+        window_target: &EventLoopWindowTarget<()>,
+        window: InitWindow,
+    ) -> SoftwareWindow {
+        let window = window.init_software(window_target).unwrap();
 
         let gc = unsafe { GraphicsContext::new(&window, window_target).unwrap() };
         let skia = SkiaSoftwareRenderer::new(gc, window.inner_size());
@@ -229,21 +248,20 @@ impl WindowManager {
     fn create_gl_window(
         window_target: &EventLoopWindowTarget<()>,
         gl_state: &mut GlWindowManagerState,
-        mut first_window: Option<WinitWindow>,
-    ) -> Result<GlWindow, glutin::error::Error> {
+        window: InitWindow,
+    ) -> Result<GlWindow, (glutin::error::Error, WinitWindow)> {
         #[cfg(target_os = "android")]
         println!("Android window available");
 
-        let window = first_window.take().unwrap_or_else(|| {
-            let window_builder = WindowBuilder::new()
-                .with_transparent(true)
-                .with_visible(false);
-            glutin_winit::finalize_window(window_target, window_builder, &gl_state.gl_config)
-                .unwrap()
-        });
+        let window = window.init_gl(window_target, &gl_state.gl_config).unwrap();
         let size = window.inner_size();
 
-        let not_current_gl_context = gl_state.try_create_context(window.raw_window_handle())?;
+        let not_current_gl_context = match gl_state.try_create_context(window.raw_window_handle()) {
+            Ok(not_current_gl_context) => not_current_gl_context,
+            Err(err) => {
+                return Err((err, window));
+            }
+        };
 
         let gl_renderer =
             GlWindowRenderer::new(&window, &gl_state.gl_config, not_current_gl_context);
@@ -262,5 +280,33 @@ impl WindowManager {
         }
 
         Ok(GlWindow::new(skia, gl_renderer, window))
+    }
+}
+
+enum InitWindow {
+    First(WinitWindow),
+    Other(WindowBuilder),
+}
+impl InitWindow {
+    fn init_software(
+        self,
+        window_target: &EventLoopWindowTarget<()>,
+    ) -> Result<WinitWindow, OsError> {
+        match self {
+            InitWindow::First(window) => Ok(window),
+            InitWindow::Other(builder) => builder.build(window_target),
+        }
+    }
+    fn init_gl(
+        self,
+        window_target: &EventLoopWindowTarget<()>,
+        gl_config: &Config,
+    ) -> Result<WinitWindow, OsError> {
+        match self {
+            InitWindow::First(window) => Ok(window),
+            InitWindow::Other(builder) => {
+                glutin_winit::finalize_window(window_target, builder, gl_config)
+            }
+        }
     }
 }

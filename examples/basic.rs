@@ -1,10 +1,11 @@
 use skia_winit_renderer::{run, App, AppCx, Window};
+use winit::window::WindowBuilder;
 
 struct ExampleApp;
 impl App for ExampleApp {
     fn resume(&self, mut cx: AppCx) {
-        cx.spawn_window(MainWindow);
-        cx.spawn_window(MainWindow);
+        cx.spawn_window(MainWindow, WindowBuilder::new().with_transparent(true));
+        cx.spawn_window(MainWindow, WindowBuilder::new().with_transparent(true));
     }
 }
 

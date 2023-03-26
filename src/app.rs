@@ -2,6 +2,7 @@ use crate::{window::Window, window_manager::WindowManager};
 use winit::{
     event::Event,
     event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget},
+    window::WindowBuilder,
 };
 
 #[allow(unused_variables)]
@@ -58,9 +59,11 @@ pub struct AppCx<'a> {
     app: &'a mut MultiWindowApplication,
 }
 impl<'a> AppCx<'a> {
-    pub fn spawn_window<T: Window>(&mut self, window: T) {
-        self.app
-            .window_manager
-            .create_window(self.window_target, Box::new(window));
+    pub fn spawn_window<T: Window>(&mut self, window: T, builder: WindowBuilder) {
+        self.app.window_manager.create_window(
+            self.window_target,
+            builder.with_visible(false),
+            Box::new(window),
+        );
     }
 }
