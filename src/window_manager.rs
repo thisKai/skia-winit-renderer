@@ -1,7 +1,7 @@
 use crate::{
     gl::{GlWindowManagerState, GlWindowRenderer},
     skia::{SkiaGlRenderer, SkiaSoftwareRenderer},
-    window::{GlWindow, SkiaWinitWindow, SoftwareWindow, Window},
+    window::{GlWindow, SkiaWinitWindow, SoftwareWindow, Window, WindowCx},
 };
 use glutin::{
     config::Config,
@@ -43,7 +43,7 @@ impl WindowManager {
 
     pub(crate) fn draw(&mut self, id: &WindowId) {
         let (window, window_state) = self.get_window_mut(id).unwrap();
-        window.draw(&mut |canvas| window_state.draw(canvas));
+        window.draw(&mut |canvas, window| window_state.draw(canvas, &WindowCx { window }));
     }
     pub fn handle_window_event(
         &mut self,
@@ -89,7 +89,12 @@ impl WindowManager {
             }
         };
 
-        window_state.resize(size);
+        window_state.resize(
+            size,
+            &WindowCx {
+                window: winit_window,
+            },
+        );
 
         if size.width != 0 && size.height != 0 {
             winit_window.request_redraw();
@@ -113,20 +118,35 @@ impl WindowManager {
     }
 
     pub fn cursor_enter(&mut self, id: &WindowId) {
-        let (_window, state) = self.get_window_mut(id).unwrap();
-        state.cursor_enter();
+        let (window, state) = self.get_window_mut(id).unwrap();
+        state.cursor_enter(&WindowCx {
+            window: window.winit_window(),
+        });
     }
     pub fn cursor_leave(&mut self, id: &WindowId) {
-        let (_window, state) = self.get_window_mut(id).unwrap();
-        state.cursor_leave();
+        let (window, state) = self.get_window_mut(id).unwrap();
+        state.cursor_leave(&WindowCx {
+            window: window.winit_window(),
+        });
     }
     pub fn cursor_move(&mut self, id: &WindowId, position: PhysicalPosition<f64>) {
-        let (_window, state) = self.get_window_mut(id).unwrap();
-        state.cursor_move(position)
+        let (window, state) = self.get_window_mut(id).unwrap();
+        state.cursor_move(
+            position,
+            &WindowCx {
+                window: window.winit_window(),
+            },
+        )
     }
     pub fn mouse_wheel(&mut self, id: &WindowId, delta: MouseScrollDelta, phase: TouchPhase) {
-        let (_window, state) = self.get_window_mut(id).unwrap();
-        state.mouse_wheel(delta, phase);
+        let (window, state) = self.get_window_mut(id).unwrap();
+        state.mouse_wheel(
+            delta,
+            phase,
+            &WindowCx {
+                window: window.winit_window(),
+            },
+        );
     }
 
     fn get_window_mut(
@@ -233,8 +253,11 @@ impl WindowManager {
     fn init_window(winit_window: &WinitWindow, state: &mut dyn Window) {
         let size = winit_window.inner_size();
 
-        state.open();
-        state.resize(size);
+        let cx = WindowCx {
+            window: winit_window,
+        };
+        state.open(&cx);
+        state.resize(size, &cx);
 
         winit_window.set_visible(true);
     }

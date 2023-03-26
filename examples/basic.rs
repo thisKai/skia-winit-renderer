@@ -1,4 +1,4 @@
-use skia_winit_renderer::{run, App, AppCx, Window};
+use skia_winit_renderer::{run, App, AppCx, Window, WindowCx};
 use winit::window::WindowBuilder;
 
 struct ExampleApp;
@@ -11,7 +11,7 @@ impl App for ExampleApp {
 
 struct MainWindow;
 impl Window for MainWindow {
-    fn draw(&self, canvas: &mut skia_safe::Canvas) {
+    fn draw(&self, canvas: &mut skia_safe::Canvas, _cx: &WindowCx) {
         canvas.draw_circle(
             (200, 200),
             50.,

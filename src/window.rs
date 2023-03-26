@@ -12,16 +12,20 @@ use winit::{
 
 #[allow(unused_variables)]
 pub trait Window: 'static {
-    fn open(&mut self) {}
-    fn close(&mut self) -> bool {
+    fn open(&mut self, cx: &WindowCx) {}
+    fn close(&mut self, cx: &WindowCx) -> bool {
         true
     }
-    fn draw(&self, canvas: &mut Canvas) {}
-    fn resize(&mut self, size: PhysicalSize<u32>) {}
-    fn cursor_enter(&mut self) {}
-    fn cursor_leave(&mut self) {}
-    fn cursor_move(&mut self, position: PhysicalPosition<f64>) {}
-    fn mouse_wheel(&mut self, delta: MouseScrollDelta, phase: TouchPhase) {}
+    fn draw(&self, canvas: &mut Canvas, cx: &WindowCx) {}
+    fn resize(&mut self, size: PhysicalSize<u32>, cx: &WindowCx) {}
+    fn cursor_enter(&mut self, cx: &WindowCx) {}
+    fn cursor_leave(&mut self, cx: &WindowCx) {}
+    fn cursor_move(&mut self, position: PhysicalPosition<f64>, cx: &WindowCx) {}
+    fn mouse_wheel(&mut self, delta: MouseScrollDelta, phase: TouchPhase, cx: &WindowCx) {}
+}
+
+pub struct WindowCx<'a> {
+    pub window: &'a WinitWindow,
 }
 
 pub(crate) trait SkiaWinitWindow {
@@ -30,7 +34,7 @@ pub(crate) trait SkiaWinitWindow {
         self.winit_window().id()
     }
 
-    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas));
+    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas, &WinitWindow));
 }
 
 pub(crate) struct SoftwareWindow {
@@ -50,8 +54,8 @@ impl SkiaWinitWindow for SoftwareWindow {
         &self.window
     }
 
-    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas)) {
-        self.skia.draw(f);
+    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas, &WinitWindow)) {
+        self.skia.draw(|canvas| f(canvas, &self.window));
     }
 }
 
@@ -81,9 +85,9 @@ impl SkiaWinitWindow for GlWindow {
         &self.window
     }
 
-    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas)) {
+    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas, &WinitWindow)) {
         self.gl.make_current_if_needed();
-        self.skia.draw(f);
+        self.skia.draw(|canvas| f(canvas, &self.window));
         self.gl.swap_buffers();
     }
 }
