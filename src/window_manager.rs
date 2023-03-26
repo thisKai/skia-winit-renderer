@@ -5,7 +5,6 @@ use crate::{
 };
 use glutin::{
     config::Config,
-    prelude::GlConfig,
     surface::{GlSurface, SwapInterval},
 };
 use raw_window_handle::HasRawWindowHandle;
