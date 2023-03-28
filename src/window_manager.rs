@@ -9,7 +9,7 @@ use glutin::{
 };
 use raw_window_handle::HasRawWindowHandle;
 use softbuffer::GraphicsContext;
-use std::{collections::HashMap, num::NonZeroU32};
+use std::{collections::HashMap, iter, num::NonZeroU32};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     error::OsError,
@@ -49,10 +49,13 @@ impl WindowManager {
         });
 
         window.draw(&mut |canvas, window| window_state.draw(canvas, &WindowCx { window }));
-
-        window_state.after_draw(&WindowCx {
-            window: window.winit_window(),
-        });
+    }
+    pub fn redraw_events_cleared(&mut self) {
+        for (window, window_state) in self.iter_windows_mut() {
+            window_state.after_draw(&WindowCx {
+                window: window.winit_window(),
+            })
+        }
     }
     pub fn handle_window_event(
         &mut self,
@@ -187,6 +190,23 @@ impl WindowManager {
 
                 Some((window, &mut **window_state))
             }
+        }
+    }
+    fn iter_windows_mut(
+        &mut self,
+    ) -> Box<dyn Iterator<Item = (&mut dyn SkiaWinitWindow, &mut dyn Window)> + '_> {
+        match &mut self.state {
+            WindowManagerState::Init => Box::new(iter::empty()),
+            WindowManagerState::Software { windows } => Box::new(
+                windows
+                    .values_mut()
+                    .map(|(window, window_state)| (window as _, &mut **window_state)),
+            ),
+            WindowManagerState::Gl { windows, .. } => Box::new(
+                windows
+                    .values_mut()
+                    .map(|(window, window_state)| (window as _, &mut **window_state)),
+            ),
         }
     }
 

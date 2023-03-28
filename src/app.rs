@@ -48,6 +48,7 @@ impl MultiWindowApplication {
                         .window_manager
                         .handle_window_event(window_id, event, window_target, control_flow),
                     Event::RedrawRequested(window_id) => self.window_manager.draw(&window_id),
+                    Event::RedrawEventsCleared => self.window_manager.redraw_events_cleared(),
                     _ => (),
                 }
             })
