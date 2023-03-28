@@ -70,10 +70,11 @@ impl GlWindow {
         Self { skia, gl, window }
     }
     pub(crate) fn resize(&mut self, gl_state: &mut GlWindowManagerState, size: PhysicalSize<u32>) {
-        self.gl.resize(
-            NonZeroU32::new(size.width).unwrap(),
-            NonZeroU32::new(size.height).unwrap(),
-        );
+        let (Some(width), Some(height)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else {
+            return
+        };
+
+        self.gl.resize(width, height);
         gl_state.resize_viewport(
             size.width.try_into().unwrap(),
             size.height.try_into().unwrap(),
