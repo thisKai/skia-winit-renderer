@@ -6,7 +6,7 @@ use skia_safe::Canvas;
 use std::num::NonZeroU32;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    event::{MouseScrollDelta, TouchPhase},
+    event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase},
     window::{Window as WinitWindow, WindowId},
 };
 
@@ -21,6 +21,7 @@ pub trait Window: 'static {
     fn cursor_enter(&mut self, cx: &WindowCx) {}
     fn cursor_leave(&mut self, cx: &WindowCx) {}
     fn cursor_move(&mut self, position: PhysicalPosition<f64>, cx: &WindowCx) {}
+    fn mouse_input(&mut self, state: ElementState, button: MouseButton, cx: &WindowCx) {}
     fn mouse_wheel(&mut self, delta: MouseScrollDelta, phase: TouchPhase, cx: &WindowCx) {}
 }
 
