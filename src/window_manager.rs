@@ -50,11 +50,14 @@ impl WindowManager {
 
         window.draw(&mut |canvas, window| window_state.draw(canvas, &WindowCx { window }));
     }
-    pub fn redraw_events_cleared(&mut self) {
+    pub fn redraw_events_cleared(&mut self, control_flow: &mut ControlFlow) {
         for (window, window_state) in self.iter_windows_mut() {
-            window_state.after_draw(&WindowCx {
-                window: window.winit_window(),
-            })
+            window_state.after_draw(
+                &WindowCx {
+                    window: window.winit_window(),
+                },
+                control_flow,
+            )
         }
     }
     pub fn handle_window_event(
