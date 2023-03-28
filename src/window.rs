@@ -17,6 +17,8 @@ pub trait Window: 'static {
         true
     }
     fn draw(&self, canvas: &mut Canvas, cx: &WindowCx) {}
+    fn before_draw(&mut self, cx: &WindowCx) {}
+    fn after_draw(&mut self, cx: &WindowCx) {}
     fn resize(&mut self, size: PhysicalSize<u32>, cx: &WindowCx) {}
     fn cursor_enter(&mut self, cx: &WindowCx) {}
     fn cursor_leave(&mut self, cx: &WindowCx) {}

@@ -43,7 +43,16 @@ impl WindowManager {
 
     pub(crate) fn draw(&mut self, id: &WindowId) {
         let (window, window_state) = self.get_window_mut(id).unwrap();
+
+        window_state.before_draw(&WindowCx {
+            window: window.winit_window(),
+        });
+
         window.draw(&mut |canvas, window| window_state.draw(canvas, &WindowCx { window }));
+
+        window_state.after_draw(&WindowCx {
+            window: window.winit_window(),
+        });
     }
     pub fn handle_window_event(
         &mut self,
