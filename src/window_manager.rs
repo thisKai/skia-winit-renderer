@@ -44,10 +44,6 @@ impl WindowManager {
     pub(crate) fn draw(&mut self, id: &WindowId) {
         let (window, window_state) = self.get_window_mut(id).unwrap();
 
-        window_state.before_draw(&WindowCx {
-            window: window.winit_window(),
-        });
-
         window.draw(&mut |canvas, window| window_state.draw(canvas, &WindowCx { window }));
     }
     pub fn redraw_events_cleared(&mut self, control_flow: &mut ControlFlow) {
