@@ -17,7 +17,7 @@ pub trait Window: 'static {
     fn close(&mut self, cx: &WindowCx) -> bool {
         true
     }
-    fn draw(&self, canvas: &mut Canvas, cx: &WindowCx) {}
+    fn draw(&mut self, canvas: &mut Canvas, cx: &WindowCx) {}
     fn before_draw(&mut self, cx: &WindowCx) {}
     fn after_draw(&mut self, cx: &WindowCx, control_flow: &mut ControlFlow) {}
     fn resize(&mut self, size: PhysicalSize<u32>, cx: &WindowCx) {}

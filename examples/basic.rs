@@ -11,7 +11,7 @@ impl App for ExampleApp {
 
 struct MainWindow;
 impl Window for MainWindow {
-    fn draw(&self, canvas: &mut skia_safe::Canvas, _cx: &WindowCx) {
+    fn draw(&mut self, canvas: &mut skia_safe::Canvas, _cx: &WindowCx) {
         canvas.draw_circle(
             (200, 200),
             50.,
