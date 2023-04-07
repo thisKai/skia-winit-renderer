@@ -1,7 +1,7 @@
 use glutin::{config::Config, prelude::*};
 use skia_safe::{
     gpu::{gl::FramebufferInfo, BackendRenderTarget, SurfaceOrigin},
-    Canvas, Color, ColorType, Surface,
+    Canvas, Color, ColorType, Surface, SurfaceProps, SurfacePropsFlags,
 };
 use softbuffer::GraphicsContext;
 use winit::dpi::PhysicalSize;
@@ -105,7 +105,10 @@ fn create_skia_surface(
         SurfaceOrigin::BottomLeft,
         ColorType::RGBA8888,
         None,
-        None,
+        Some(&SurfaceProps::new(
+            SurfacePropsFlags::empty(),
+            skia_safe::PixelGeometry::RGBH,
+        )),
     )
     .unwrap()
 }
