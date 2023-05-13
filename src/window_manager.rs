@@ -220,10 +220,10 @@ impl WindowManager {
                         &window_builder,
                     )
                     .map_err(|err| (err, None))
-                    .and_then(|(mut gl_state, first_window)| {
+                    .and_then(|(gl_state, first_window)| {
                         let window = Self::create_gl_window(
                             window_target,
-                            &mut gl_state,
+                            &gl_state,
                             first_window
                                 .map(InitWindow::First)
                                 .unwrap_or(InitWindow::Other(window_builder.clone())),
@@ -322,7 +322,7 @@ impl WindowManager {
 
     fn create_gl_window(
         window_target: &EventLoopWindowTarget<()>,
-        gl_state: &mut GlWindowManagerState,
+        gl_state: &GlWindowManagerState,
         window: InitWindow,
     ) -> Result<GlWindow, (glutin::error::Error, WinitWindow)> {
         #[cfg(target_os = "android")]

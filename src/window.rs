@@ -72,7 +72,7 @@ impl GlWindow {
     pub(crate) fn new(skia: SkiaGlRenderer, window: WinitWindow) -> Self {
         Self { skia, window }
     }
-    pub(crate) fn resize(&mut self, gl_state: &mut GlWindowManagerState, size: PhysicalSize<u32>) {
+    pub(crate) fn resize(&mut self, gl_state: &GlWindowManagerState, size: PhysicalSize<u32>) {
         self.skia.resize(gl_state, size.width, size.height)
     }
 }

@@ -53,7 +53,7 @@ impl SkiaGlRenderer {
             gl: gl_renderer,
         })
     }
-    pub(crate) fn resize(&mut self, gl_state: &mut GlWindowManagerState, width: u32, height: u32) {
+    pub(crate) fn resize(&mut self, gl_state: &GlWindowManagerState, width: u32, height: u32) {
         let (Some(gl_width), Some(gl_height)) = (NonZeroU32::new(width), NonZeroU32::new(height)) else {
             return;
         };
