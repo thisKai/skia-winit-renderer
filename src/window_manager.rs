@@ -326,25 +326,15 @@ impl WindowManager {
         let window = window.init_gl(window_target, &gl_state.gl_config).unwrap();
         let size = window.inner_size();
 
-        let raw_window_handle = window.raw_window_handle();
-
-        let not_current_gl_context = match gl_state.try_create_context(raw_window_handle) {
-            Ok(not_current_gl_context) => not_current_gl_context,
-            Err(err) => {
-                return Err((err, window));
-            }
-        };
-
-        let skia = SkiaGlRenderer::new(
-            raw_window_handle,
-            not_current_gl_context,
+        match SkiaGlRenderer::new(
+            window.raw_window_handle(),
             size.width,
             size.height,
-            &gl_state.gl,
-            &gl_state.gl_config,
-        );
-
-        Ok(GlWindow::new(skia, window))
+            &gl_state,
+        ) {
+            Ok(skia) => Ok(GlWindow::new(skia, window)),
+            Err(err) => Err((err, window)),
+        }
     }
 }
 

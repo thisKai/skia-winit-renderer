@@ -1,17 +1,16 @@
-use std::num::NonZeroU32;
-
 use super::{
     bindings::{self as gl, types::GLint, Gl},
     manager::GlWindowManagerState,
     window::GlWindowRenderer,
 };
 
-use glutin::{config::Config, context::NotCurrentContext, prelude::*, surface::SwapInterval};
+use glutin::{config::Config, prelude::*, surface::SwapInterval};
 use raw_window_handle::RawWindowHandle;
 use skia_safe::{
     gpu::{gl::FramebufferInfo, BackendRenderTarget, SurfaceOrigin},
     Canvas, Color, ColorType, Surface,
 };
+use std::num::NonZeroU32;
 
 pub(crate) struct SkiaGlRenderer {
     skia: SkiaGlSurface,
@@ -20,19 +19,16 @@ pub(crate) struct SkiaGlRenderer {
 impl SkiaGlRenderer {
     pub(crate) fn new(
         raw_window_handle: RawWindowHandle,
-        not_current_gl_context: NotCurrentContext,
         width: u32,
         height: u32,
-        gl: &Gl,
-        gl_config: &Config,
-    ) -> Self {
+        gl_state: &GlWindowManagerState,
+    ) -> Result<Self, glutin::error::Error> {
         let gl_renderer = GlWindowRenderer::new(
             raw_window_handle,
-            not_current_gl_context,
             width.try_into().unwrap(),
             height.try_into().unwrap(),
-            gl_config,
-        );
+            &gl_state,
+        )?;
 
         // The context needs to be current for the Renderer to set up shaders and
         // buffers. It also performs function loading, which needs a current context on
@@ -40,8 +36,8 @@ impl SkiaGlRenderer {
         let skia = SkiaGlSurface::new(
             width.try_into().unwrap(),
             height.try_into().unwrap(),
-            gl,
-            gl_config,
+            &gl_state.gl,
+            &gl_state.gl_config,
         );
 
         // Try setting vsync.
@@ -52,10 +48,10 @@ impl SkiaGlRenderer {
             eprintln!("Error setting vsync: {:?}", res);
         }
 
-        Self {
+        Ok(Self {
             skia,
             gl: gl_renderer,
-        }
+        })
     }
     pub(crate) fn resize(&mut self, gl_state: &mut GlWindowManagerState, width: u32, height: u32) {
         let (Some(gl_width), Some(gl_height)) = (NonZeroU32::new(width), NonZeroU32::new(height)) else {

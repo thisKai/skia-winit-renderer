@@ -1,5 +1,6 @@
+use super::GlWindowManagerState;
+
 use glutin::{
-    config::Config,
     context::{NotCurrentContext, PossiblyCurrentContext},
     display::GetGlDisplay,
     prelude::*,
@@ -17,11 +18,12 @@ pub(crate) struct GlWindowRenderer {
 impl GlWindowRenderer {
     pub(crate) fn new(
         raw_window_handle: RawWindowHandle,
-        not_current_gl_context: NotCurrentContext,
         width: NonZeroU32,
         height: NonZeroU32,
-        config: &Config,
-    ) -> Self {
+        gl_state: &GlWindowManagerState,
+    ) -> Result<Self, glutin::error::Error> {
+        let not_current_gl_context = gl_state.try_create_context(raw_window_handle)?;
+
         let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
             raw_window_handle,
             width,
@@ -29,18 +31,19 @@ impl GlWindowRenderer {
         );
 
         let surface = unsafe {
-            config
+            gl_state
+                .gl_config
                 .display()
-                .create_window_surface(config, &attrs)
+                .create_window_surface(&gl_state.gl_config, &attrs)
                 .unwrap()
         };
         // Make it current.
         let gl_context = not_current_gl_context.make_current(&surface).unwrap();
 
-        Self {
+        Ok(Self {
             surface,
             gl_context: Some(gl_context),
-        }
+        })
     }
     pub(crate) fn gl_context(&self) -> &PossiblyCurrentContext {
         self.gl_context.as_ref().unwrap()
