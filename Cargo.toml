@@ -24,7 +24,12 @@ glutin-winit = "0.3"
 skia-safe = { version = "0.60", features = ["textlayout", "gl"] }
 
 [target.'cfg(unix)'.dependencies]
-skia-safe = { version = "0.60", features = ["textlayout", "gl", "x11"] }
+skia-safe = { version = "0.60", features = [
+    "textlayout",
+    "gl",
+    "x11",
+    "wayland",
+] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-glue = "0.7" # Keep in sync with winit dependency
