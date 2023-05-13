@@ -308,9 +308,14 @@ impl WindowManager {
         window: InitWindow,
     ) -> SoftwareWindow {
         let window = window.init_software(window_target).unwrap();
+        let size = window.inner_size();
 
         let gc = unsafe { GraphicsContext::new(&window, window_target).unwrap() };
-        let skia = SkiaSoftwareRenderer::new(gc, window.inner_size());
+        let skia = SkiaSoftwareRenderer::new(
+            gc,
+            size.width.try_into().unwrap(),
+            size.height.try_into().unwrap(),
+        );
 
         SoftwareWindow::new(skia, window)
     }

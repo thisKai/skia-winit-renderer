@@ -48,7 +48,10 @@ impl SoftwareWindow {
         Self { skia, window }
     }
     pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
-        self.skia.resize(size);
+        self.skia.resize(
+            size.width.try_into().unwrap(),
+            size.height.try_into().unwrap(),
+        );
     }
 }
 impl SkiaWinitWindow for SoftwareWindow {

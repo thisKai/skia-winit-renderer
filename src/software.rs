@@ -1,24 +1,21 @@
 use skia_safe::{Canvas, Color, Surface};
 use softbuffer::GraphicsContext;
-use winit::dpi::PhysicalSize;
 
 pub(crate) struct SkiaSoftwareRenderer {
     surface: Surface,
     graphics_context: GraphicsContext,
 }
 impl SkiaSoftwareRenderer {
-    pub(crate) fn new(graphics_context: GraphicsContext, size: PhysicalSize<u32>) -> Self {
-        let surface =
-            Surface::new_raster_n32_premul((size.width as i32, size.height as i32)).unwrap();
+    pub(crate) fn new(graphics_context: GraphicsContext, width: i32, height: i32) -> Self {
+        let surface = Surface::new_raster_n32_premul((width, height)).unwrap();
 
         Self {
             surface,
             graphics_context,
         }
     }
-    pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
-        self.surface =
-            Surface::new_raster_n32_premul((size.width as i32, size.height as i32)).unwrap();
+    pub(crate) fn resize(&mut self, width: i32, height: i32) {
+        self.surface = Surface::new_raster_n32_premul((width, height)).unwrap();
     }
     pub(crate) fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
         {
