@@ -1,6 +1,6 @@
 use crate::{
-    gl::{manager::GlWindowManagerState, skia::SkiaGlRenderer},
-    skia::SkiaSoftwareRenderer,
+    gl::{GlWindowManagerState, SkiaGlRenderer},
+    software::SkiaSoftwareRenderer,
 };
 use skia_safe::Canvas;
 use winit::{

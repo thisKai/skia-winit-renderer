@@ -1,6 +1,6 @@
 mod app;
 mod gl;
-mod skia;
+mod software;
 mod window;
 mod window_manager;
 
