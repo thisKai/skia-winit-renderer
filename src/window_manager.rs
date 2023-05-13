@@ -1,15 +1,12 @@
 use crate::{
-    gl::{GlWindowManagerState, GlWindowRenderer},
-    skia::{SkiaGlRenderer, SkiaSoftwareRenderer},
+    gl::{manager::GlWindowManagerState, skia::SkiaGlRenderer},
+    skia::SkiaSoftwareRenderer,
     window::{GlWindow, SkiaWinitWindow, SoftwareWindow, Window, WindowCx},
 };
-use glutin::{
-    config::Config,
-    surface::{GlSurface, SwapInterval},
-};
+use glutin::config::Config;
 use raw_window_handle::HasRawWindowHandle;
 use softbuffer::GraphicsContext;
-use std::{collections::HashMap, iter, num::NonZeroU32};
+use std::{collections::HashMap, iter};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     error::OsError,
@@ -218,20 +215,23 @@ impl WindowManager {
         match &mut self.state {
             state @ WindowManagerState::Init => {
                 let gl_state_and_first_window =
-                    GlWindowManagerState::create_with_first_window(window_target, &window_builder)
-                        .map_err(|err| (err, None))
-                        .and_then(|(mut gl_state, first_window)| {
-                            let window = Self::create_gl_window(
-                                window_target,
-                                &mut gl_state,
-                                first_window
-                                    .map(InitWindow::First)
-                                    .unwrap_or(InitWindow::Other(window_builder.clone())),
-                            )
-                            .map_err(|(err, window)| (err.into(), Some(window)))?;
+                    GlWindowManagerState::create_with_first_winit_window(
+                        window_target,
+                        &window_builder,
+                    )
+                    .map_err(|err| (err, None))
+                    .and_then(|(mut gl_state, first_window)| {
+                        let window = Self::create_gl_window(
+                            window_target,
+                            &mut gl_state,
+                            first_window
+                                .map(InitWindow::First)
+                                .unwrap_or(InitWindow::Other(window_builder.clone())),
+                        )
+                        .map_err(|(err, window)| (err.into(), Some(window)))?;
 
-                            Ok((gl_state, window))
-                        });
+                        Ok((gl_state, window))
+                    });
 
                 match gl_state_and_first_window {
                     Ok((gl_state, window)) => {
@@ -326,30 +326,25 @@ impl WindowManager {
         let window = window.init_gl(window_target, &gl_state.gl_config).unwrap();
         let size = window.inner_size();
 
-        let not_current_gl_context = match gl_state.try_create_context(window.raw_window_handle()) {
+        let raw_window_handle = window.raw_window_handle();
+
+        let not_current_gl_context = match gl_state.try_create_context(raw_window_handle) {
             Ok(not_current_gl_context) => not_current_gl_context,
             Err(err) => {
                 return Err((err, window));
             }
         };
 
-        let gl_renderer =
-            GlWindowRenderer::new(&window, &gl_state.gl_config, not_current_gl_context);
+        let skia = SkiaGlRenderer::new(
+            raw_window_handle,
+            not_current_gl_context,
+            size.width,
+            size.height,
+            &gl_state.gl,
+            &gl_state.gl_config,
+        );
 
-        // The context needs to be current for the Renderer to set up shaders and
-        // buffers. It also performs function loading, which needs a current context on
-        // WGL.
-        let skia = SkiaGlRenderer::new(&gl_state.gl, &gl_state.gl_config, size);
-
-        // Try setting vsync.
-        if let Err(res) = gl_renderer.surface.set_swap_interval(
-            gl_renderer.gl_context(),
-            SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
-        ) {
-            eprintln!("Error setting vsync: {:?}", res);
-        }
-
-        Ok(GlWindow::new(skia, gl_renderer, window))
+        Ok(GlWindow::new(skia, window))
     }
 }
 

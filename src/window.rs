@@ -1,9 +1,8 @@
 use crate::{
-    gl::{GlWindowManagerState, GlWindowRenderer},
-    skia::{SkiaGlRenderer, SkiaSoftwareRenderer},
+    gl::{manager::GlWindowManagerState, skia::SkiaGlRenderer},
+    skia::SkiaSoftwareRenderer,
 };
 use skia_safe::Canvas;
-use std::num::NonZeroU32;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase},
@@ -64,24 +63,14 @@ impl SkiaWinitWindow for SoftwareWindow {
 
 pub(crate) struct GlWindow {
     skia: SkiaGlRenderer,
-    gl: GlWindowRenderer,
     window: WinitWindow,
 }
 impl GlWindow {
-    pub(crate) fn new(skia: SkiaGlRenderer, gl: GlWindowRenderer, window: WinitWindow) -> Self {
-        Self { skia, gl, window }
+    pub(crate) fn new(skia: SkiaGlRenderer, window: WinitWindow) -> Self {
+        Self { skia, window }
     }
     pub(crate) fn resize(&mut self, gl_state: &mut GlWindowManagerState, size: PhysicalSize<u32>) {
-        let (Some(width), Some(height)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else {
-            return
-        };
-
-        self.gl.resize(width, height);
-        gl_state.resize_viewport(
-            size.width.try_into().unwrap(),
-            size.height.try_into().unwrap(),
-        );
-        self.skia.resize(&gl_state.gl_config, size);
+        self.skia.resize(gl_state, size.width, size.height)
     }
 }
 impl SkiaWinitWindow for GlWindow {
@@ -90,8 +79,6 @@ impl SkiaWinitWindow for GlWindow {
     }
 
     fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas, &WinitWindow)) {
-        self.gl.make_current_if_needed();
         self.skia.draw(|canvas| f(canvas, &self.window));
-        self.gl.swap_buffers();
     }
 }
