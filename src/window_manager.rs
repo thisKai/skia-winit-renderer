@@ -4,14 +4,13 @@ use crate::{
     window::{GlWindow, SkiaWinitWindow, SoftwareWindow, Window, WindowCx},
 };
 use glutin::config::Config;
-use raw_window_handle::HasRawWindowHandle;
-use softbuffer::GraphicsContext;
-use std::{collections::HashMap, iter};
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use std::{collections::HashMap, error::Error, iter};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     error::OsError,
     event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent},
-    event_loop::{ControlFlow, EventLoopWindowTarget},
+    event_loop::EventLoopWindowTarget,
     window::{Window as WinitWindow, WindowBuilder, WindowId},
 };
 
@@ -43,13 +42,13 @@ impl WindowManager {
 
         window.draw(&mut |canvas, window| window_state.draw(canvas, &WindowCx { window }));
     }
-    pub fn redraw_events_cleared(&mut self, control_flow: &mut ControlFlow) {
+    pub fn redraw_events_cleared(&mut self, window_target: &EventLoopWindowTarget<()>) {
         for (window, window_state) in self.iter_windows_mut() {
             window_state.after_draw(
                 &WindowCx {
                     window: window.winit_window(),
                 },
-                control_flow,
+                window_target,
             )
         }
     }
@@ -57,14 +56,14 @@ impl WindowManager {
         &mut self,
         window_id: WindowId,
         event: WindowEvent,
-        _window_target: &EventLoopWindowTarget<()>,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
     ) {
         match event {
+            WindowEvent::RedrawRequested => self.draw(&window_id),
             WindowEvent::Resized(size) => self.resize(&window_id, size),
             WindowEvent::CloseRequested => {
                 if self.close_window(&window_id) {
-                    control_flow.set_exit();
+                    window_target.exit();
                 }
             }
             WindowEvent::CursorEntered { .. } => self.cursor_enter(&window_id),
@@ -232,6 +231,10 @@ impl WindowManager {
 
                         Ok((gl_state, window))
                     });
+                // let gl_state_and_first_window: Result<(GlWindowManagerState, GlWindow), _> = Err((
+                //     <Box<dyn Error>>::from(String::from("blah")),
+                //     window_builder.clone().build(window_target).ok(),
+                // ));
 
                 match gl_state_and_first_window {
                     Ok((gl_state, window)) => {
@@ -310,9 +313,9 @@ impl WindowManager {
         let window = window.init_software(window_target).unwrap();
         let size = window.inner_size();
 
-        let gc = unsafe { GraphicsContext::new(&window, window_target).unwrap() };
         let skia = SkiaSoftwareRenderer::new(
-            gc,
+            window_target.raw_display_handle(),
+            window.raw_window_handle(),
             size.width.try_into().unwrap(),
             size.height.try_into().unwrap(),
         );

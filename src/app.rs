@@ -1,7 +1,7 @@
 use crate::{window::Window, window_manager::WindowManager};
 use winit::{
     event::Event,
-    event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget},
+    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget},
     window::WindowBuilder,
 };
 
@@ -10,7 +10,7 @@ pub trait App: 'static {
     fn resume(&self, cx: AppCx) {}
 }
 
-pub fn run<T: App>(app: T) -> ! {
+pub fn run<T: App>(app: T) {
     let runtime = MultiWindowApplication::new();
     runtime.start(app)
 }
@@ -21,7 +21,7 @@ pub struct MultiWindowApplication {
 }
 impl MultiWindowApplication {
     fn new() -> Self {
-        let event_loop = EventLoopBuilder::new().build();
+        let event_loop = EventLoopBuilder::new().build().unwrap();
         Self {
             window_manager: WindowManager::new(),
             event_loop: Some(event_loop),
@@ -33,12 +33,13 @@ impl MultiWindowApplication {
             app: self,
         }
     }
-    fn start<T: App>(mut self, app: T) -> ! {
+    fn start<T: App>(mut self, app: T) {
         self.event_loop
             .take()
             .unwrap()
-            .run(move |event, window_target, control_flow| {
-                control_flow.set_wait();
+            .run(move |event, window_target| {
+                window_target.set_control_flow(ControlFlow::Wait);
+
                 match event {
                     Event::Resumed => {
                         app.resume(self.context(window_target));
@@ -46,14 +47,12 @@ impl MultiWindowApplication {
 
                     Event::WindowEvent { window_id, event } => self
                         .window_manager
-                        .handle_window_event(window_id, event, window_target, control_flow),
-                    Event::RedrawRequested(window_id) => self.window_manager.draw(&window_id),
-                    Event::RedrawEventsCleared => {
-                        self.window_manager.redraw_events_cleared(control_flow)
-                    }
+                        .handle_window_event(window_id, event, window_target),
+                    Event::AboutToWait => self.window_manager.redraw_events_cleared(window_target),
                     _ => (),
                 }
             })
+            .unwrap();
     }
 }
 

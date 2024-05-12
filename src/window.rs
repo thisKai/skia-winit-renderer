@@ -6,7 +6,7 @@ use skia_safe::Canvas;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase},
-    event_loop::ControlFlow,
+    event_loop::EventLoopWindowTarget,
     window::{Window as WinitWindow, WindowId},
 };
 
@@ -17,7 +17,7 @@ pub trait Window: 'static {
         true
     }
     fn draw(&mut self, canvas: &mut Canvas, cx: &WindowCx) {}
-    fn after_draw(&mut self, cx: &WindowCx, control_flow: &mut ControlFlow) {}
+    fn after_draw(&mut self, cx: &WindowCx, window_target: &EventLoopWindowTarget<()>) {}
     fn resize(&mut self, size: PhysicalSize<u32>, cx: &WindowCx) {}
     fn cursor_enter(&mut self, cx: &WindowCx) {}
     fn cursor_leave(&mut self, cx: &WindowCx) {}
