@@ -4,13 +4,13 @@ use super::{
     window::GlWindowRenderer,
 };
 
-use glutin::{config::Config, prelude::*, surface::SwapInterval};
+use glutin::{config::Config, display::GetGlDisplay, prelude::*, surface::SwapInterval};
 use raw_window_handle::RawWindowHandle;
 use skia_safe::{
-    gpu::{gl::FramebufferInfo, BackendRenderTarget, SurfaceOrigin},
+    gpu::{gl::FramebufferInfo, SurfaceOrigin},
     Canvas, Color, ColorType, Surface,
 };
-use std::num::NonZeroU32;
+use std::{ffi::CString, num::NonZeroU32};
 
 pub(crate) struct SkiaGlRenderer {
     skia: SkiaGlSurface,
@@ -54,7 +54,8 @@ impl SkiaGlRenderer {
         })
     }
     pub(crate) fn resize(&mut self, gl_state: &GlWindowManagerState, width: u32, height: u32) {
-        let (Some(gl_width), Some(gl_height)) = (NonZeroU32::new(width), NonZeroU32::new(height)) else {
+        let (Some(gl_width), Some(gl_height)) = (NonZeroU32::new(width), NonZeroU32::new(height))
+        else {
             return;
         };
 
@@ -64,7 +65,7 @@ impl SkiaGlRenderer {
         gl_state.resize_viewport(width, height);
         self.skia.resize(width, height, &gl_state.gl_config);
     }
-    pub(crate) fn draw(&mut self, mut f: impl FnMut(&mut Canvas)) {
+    pub(crate) fn draw(&mut self, mut f: impl FnMut(&Canvas)) {
         self.gl.make_current_if_needed();
         self.skia.draw(|canvas| f(canvas));
         self.gl.swap_buffers();
@@ -78,7 +79,18 @@ pub(crate) struct SkiaGlSurface {
 }
 impl SkiaGlSurface {
     pub(crate) fn new(width: i32, height: i32, gl: &Gl, gl_config: &Config) -> Self {
-        let mut gr_context = skia_safe::gpu::DirectContext::new_gl(None, None).unwrap();
+        let interface = skia_safe::gpu::gl::Interface::new_load_with(|name| {
+            if name == "eglGetCurrentDisplay" {
+                return std::ptr::null();
+            }
+            gl_config
+                .display()
+                .get_proc_address(CString::new(name).unwrap().as_c_str())
+        })
+        .expect("Could not create interface");
+
+        let mut gr_context = skia_safe::gpu::direct_contexts::make_gl(interface, None)
+            .expect("Could not create direct context");
 
         let fb_info = {
             let mut fboid: GLint = 0;
@@ -87,6 +99,7 @@ impl SkiaGlSurface {
             FramebufferInfo {
                 fboid: fboid.try_into().unwrap(),
                 format: skia_safe::gpu::gl::Format::RGBA8.into(),
+                ..Default::default()
             }
         };
         let surface = create_skia_surface(width, height, gl_config, &fb_info, &mut gr_context);
@@ -106,7 +119,7 @@ impl SkiaGlSurface {
             &mut self.gr_context,
         );
     }
-    pub(crate) fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
+    pub(crate) fn draw(&mut self, paint: impl FnOnce(&Canvas)) {
         {
             let canvas = self.surface.canvas();
             canvas.clear(Color::TRANSPARENT);
@@ -122,13 +135,14 @@ fn create_skia_surface(
     fb_info: &FramebufferInfo,
     gr_context: &mut skia_safe::gpu::DirectContext,
 ) -> skia_safe::Surface {
-    let backend_render_target = BackendRenderTarget::new_gl(
+    let backend_render_target = skia_safe::gpu::backend_render_targets::make_gl(
         (width, height),
         Some(gl_config.num_samples().into()),
         gl_config.stencil_size().into(),
         *fb_info,
     );
-    Surface::from_backend_render_target(
+
+    skia_safe::gpu::surfaces::wrap_backend_render_target(
         gr_context,
         &backend_render_target,
         SurfaceOrigin::BottomLeft,
@@ -136,5 +150,5 @@ fn create_skia_surface(
         None,
         None,
     )
-    .unwrap()
+    .expect("Could not create skia surface")
 }

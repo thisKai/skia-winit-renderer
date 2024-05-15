@@ -16,7 +16,7 @@ pub trait Window: 'static {
     fn close(&mut self, cx: &WindowCx) -> bool {
         true
     }
-    fn draw(&mut self, canvas: &mut Canvas, cx: &WindowCx) {}
+    fn draw(&mut self, canvas: &Canvas, cx: &WindowCx) {}
     fn after_draw(&mut self, cx: &WindowCx, window_target: &EventLoopWindowTarget<()>) {}
     fn resize(&mut self, size: PhysicalSize<u32>, cx: &WindowCx) {}
     fn cursor_enter(&mut self, cx: &WindowCx) {}
@@ -36,7 +36,7 @@ pub(crate) trait SkiaWinitWindow {
         self.winit_window().id()
     }
 
-    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas, &WinitWindow));
+    fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow));
 }
 
 pub(crate) struct SoftwareWindow {
@@ -59,7 +59,7 @@ impl SkiaWinitWindow for SoftwareWindow {
         &self.window
     }
 
-    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas, &WinitWindow)) {
+    fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow)) {
         self.skia.draw(|canvas| f(canvas, &self.window));
     }
 }
@@ -81,7 +81,7 @@ impl SkiaWinitWindow for GlWindow {
         &self.window
     }
 
-    fn draw(&mut self, f: &mut dyn FnMut(&mut Canvas, &WinitWindow)) {
+    fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow)) {
         self.skia.draw(|canvas| f(canvas, &self.window));
     }
 }

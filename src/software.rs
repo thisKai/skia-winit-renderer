@@ -18,7 +18,7 @@ impl SkiaSoftwareRenderer {
     ) -> Self {
         let context = unsafe { SoftBufferContext::from_raw(display).unwrap() };
         let surface = unsafe { softbuffer::Surface::from_raw(&context, window) }.unwrap();
-        let skia_surface = SkiaSurface::new_raster_n32_premul((width, height)).unwrap();
+        let skia_surface = skia_safe::surfaces::raster_n32_premul((width, height)).unwrap();
 
         Self {
             skia_surface,
@@ -31,9 +31,9 @@ impl SkiaSoftwareRenderer {
 
         let width = width.get() as i32;
         let height = height.get() as i32;
-        self.skia_surface = SkiaSurface::new_raster_n32_premul((width, height)).unwrap();
+        self.skia_surface = skia_safe::surfaces::raster_n32_premul((width, height)).unwrap();
     }
-    pub(crate) fn draw(&mut self, paint: impl FnOnce(&mut Canvas)) {
+    pub(crate) fn draw(&mut self, paint: impl FnOnce(&Canvas)) {
         {
             let canvas = self.skia_surface.canvas();
             canvas.clear(Color::TRANSPARENT);

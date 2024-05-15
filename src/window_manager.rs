@@ -5,7 +5,7 @@ use crate::{
 };
 use glutin::config::Config;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use std::{collections::HashMap, error::Error, iter};
+use std::{collections::HashMap, iter};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     error::OsError,
