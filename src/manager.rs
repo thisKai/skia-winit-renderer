@@ -255,6 +255,7 @@ pub trait ManagedWindow<State> {
     fn state(&self) -> &State;
     fn state_mut(&mut self) -> &mut State;
     fn winit_window(&self) -> &Window;
+    fn winit_window_and_state_mut(&mut self) -> (&mut Window, &mut State);
     fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &Window, &mut State));
 }
 impl<Skia: SkiaRenderer, State> ManagedWindow<State> for StatefulWindow<Skia, State> {
@@ -266,6 +267,9 @@ impl<Skia: SkiaRenderer, State> ManagedWindow<State> for StatefulWindow<Skia, St
     }
     fn winit_window(&self) -> &Window {
         &self.window.window
+    }
+    fn winit_window_and_state_mut(&mut self) -> (&mut Window, &mut State) {
+        (&mut self.window.window, &mut self.state)
     }
     fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &Window, &mut State)) {
         self.window
