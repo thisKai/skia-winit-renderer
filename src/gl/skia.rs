@@ -1,3 +1,5 @@
+use crate::skia::SkiaRenderer;
+
 use super::{
     bindings::{self as gl, types::GLint, Gl},
     manager::GlWindowManagerState,
@@ -69,6 +71,25 @@ impl SkiaGlRenderer {
         self.gl.make_current_if_needed();
         self.skia.draw(|canvas| f(canvas));
         self.gl.swap_buffers();
+    }
+}
+
+impl SkiaRenderer for SkiaGlRenderer {
+    type ResizeDependency = GlWindowManagerState;
+
+    fn draw(&mut self, f: &mut dyn FnMut(&Canvas)) {
+        self.draw(f);
+    }
+
+    fn resize(&mut self, gl_state: &Self::ResizeDependency, width: NonZeroU32, height: NonZeroU32) {
+        self.gl.resize(width, height);
+
+        let (width, height) = (
+            width.get().try_into().unwrap(),
+            height.get().try_into().unwrap(),
+        );
+        gl_state.resize_viewport(width, height);
+        self.skia.resize(width, height, &gl_state.gl_config);
     }
 }
 

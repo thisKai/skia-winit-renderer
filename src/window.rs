@@ -1,5 +1,6 @@
 use crate::{
     gl::{GlWindowManagerState, SkiaGlRenderer},
+    skia::SkiaRenderer,
     software::SkiaSoftwareRenderer,
 };
 use skia_safe::Canvas;
@@ -37,6 +38,58 @@ pub(crate) trait SkiaWinitWindow {
     }
 
     fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow));
+}
+
+pub(crate) struct SkiaWindow<S> {
+    skia: S,
+    pub(crate) window: WinitWindow,
+}
+impl<S> SkiaWindow<S> {
+    pub(crate) fn id(&self) -> WindowId {
+        self.window.id()
+    }
+}
+impl SkiaWindow<SkiaSoftwareRenderer> {
+    pub(crate) fn software(skia: SkiaSoftwareRenderer, window: WinitWindow) -> Self {
+        Self { skia, window }
+    }
+
+    pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
+        self.skia.resize(
+            size.width.try_into().unwrap(),
+            size.height.try_into().unwrap(),
+        )
+    }
+}
+impl SkiaWindow<SkiaGlRenderer> {
+    pub(crate) fn gl(skia: SkiaGlRenderer, window: WinitWindow) -> Self {
+        Self { skia, window }
+    }
+}
+impl<S: SkiaRenderer> SkiaWindow<S> {
+    pub(crate) fn resize_dependent(
+        &mut self,
+        dependency: &S::ResizeDependency,
+        size: PhysicalSize<u32>,
+    ) {
+        self.skia.resize(
+            dependency,
+            size.width.try_into().unwrap(),
+            size.height.try_into().unwrap(),
+        )
+    }
+    pub(crate) fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow)) {
+        self.skia.draw(&mut |canvas| f(canvas, &self.window));
+    }
+}
+impl<S: SkiaRenderer> SkiaWinitWindow for SkiaWindow<S> {
+    fn winit_window(&self) -> &WinitWindow {
+        &self.window
+    }
+
+    fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow)) {
+        self.draw(f);
+    }
 }
 
 pub(crate) struct SoftwareWindow {

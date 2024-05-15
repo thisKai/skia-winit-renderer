@@ -4,6 +4,8 @@ use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 use skia_safe::{Canvas, Color, Surface as SkiaSurface};
 use softbuffer::{Context as SoftBufferContext, Surface as SoftBufferSurface};
 
+use crate::skia::SkiaRenderer;
+
 pub(crate) struct SkiaSoftwareRenderer {
     skia_surface: SkiaSurface,
     surface: SoftBufferSurface,
@@ -48,5 +50,17 @@ impl SkiaSoftwareRenderer {
         let mut buffer = self.surface.buffer_mut().unwrap();
         buffer.copy_from_slice(pixels);
         buffer.present().unwrap();
+    }
+}
+
+impl SkiaRenderer for SkiaSoftwareRenderer {
+    type ResizeDependency = ();
+
+    fn draw(&mut self, f: &mut dyn FnMut(&Canvas)) {
+        self.draw(f);
+    }
+
+    fn resize(&mut self, _: &Self::ResizeDependency, width: NonZeroU32, height: NonZeroU32) {
+        self.resize(width, height)
     }
 }
