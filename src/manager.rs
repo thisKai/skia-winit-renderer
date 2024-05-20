@@ -72,6 +72,13 @@ impl<State> WindowManager<State> {
         }
     }
 
+    pub fn get_window(&self, id: &WindowId) -> Option<&dyn ManagedWindow<State>> {
+        match &self.state {
+            WindowManagerState::Init => None,
+            WindowManagerState::Software { windows } => windows.get(id).map(|window| window as _),
+            WindowManagerState::Gl { windows, .. } => windows.get(id).map(|window| window as _),
+        }
+    }
     pub fn get_window_mut(&mut self, id: &WindowId) -> Option<&mut dyn ManagedWindow<State>> {
         match &mut self.state {
             WindowManagerState::Init => None,
@@ -79,6 +86,17 @@ impl<State> WindowManager<State> {
                 windows.get_mut(id).map(|window| window as _)
             }
             WindowManagerState::Gl { windows, .. } => windows.get_mut(id).map(|window| window as _),
+        }
+    }
+    pub fn iter_windows(&self) -> Box<dyn Iterator<Item = &dyn ManagedWindow<State>> + '_> {
+        match &self.state {
+            WindowManagerState::Init => Box::new(iter::empty()),
+            WindowManagerState::Software { windows } => {
+                Box::new(windows.values().map(|window| window as _))
+            }
+            WindowManagerState::Gl { windows, .. } => {
+                Box::new(windows.values().map(|window| window as _))
+            }
         }
     }
     pub fn iter_windows_mut(
