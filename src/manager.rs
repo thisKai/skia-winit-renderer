@@ -113,9 +113,9 @@ impl<State> WindowManager<State> {
         }
     }
 
-    pub fn create_window(
+    pub fn create_window<T>(
         &mut self,
-        window_target: &EventLoopWindowTarget<()>,
+        window_target: &EventLoopWindowTarget<T>,
         window_builder: WindowBuilder,
         window_state: State,
     ) -> WindowId {
@@ -206,8 +206,8 @@ impl<State> WindowManager<State> {
         winit_window.set_visible(true);
     }
 
-    fn create_software_window(
-        window_target: &EventLoopWindowTarget<()>,
+    fn create_software_window<T>(
+        window_target: &EventLoopWindowTarget<T>,
         window: InitWindow,
     ) -> SkiaWindow<SkiaSoftwareRenderer> {
         let window = window.init_software(window_target).unwrap();
@@ -223,8 +223,8 @@ impl<State> WindowManager<State> {
         SkiaWindow::software(skia, window)
     }
 
-    fn create_gl_window(
-        window_target: &EventLoopWindowTarget<()>,
+    fn create_gl_window<T>(
+        window_target: &EventLoopWindowTarget<T>,
         gl_state: &GlWindowManagerState,
         window: InitWindow,
     ) -> Result<SkiaWindow<SkiaGlRenderer>, (glutin::error::Error, Window)> {
@@ -300,15 +300,15 @@ enum InitWindow {
     Other(WindowBuilder),
 }
 impl InitWindow {
-    fn init_software(self, window_target: &EventLoopWindowTarget<()>) -> Result<Window, OsError> {
+    fn init_software<T>(self, window_target: &EventLoopWindowTarget<T>) -> Result<Window, OsError> {
         match self {
             InitWindow::First(window) => Ok(window),
             InitWindow::Other(builder) => builder.build(window_target),
         }
     }
-    fn init_gl(
+    fn init_gl<T>(
         self,
-        window_target: &EventLoopWindowTarget<()>,
+        window_target: &EventLoopWindowTarget<T>,
         gl_config: &Config,
     ) -> Result<Window, OsError> {
         match self {

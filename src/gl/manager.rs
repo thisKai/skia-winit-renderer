@@ -20,8 +20,8 @@ pub(crate) struct GlWindowManagerState {
     pub(crate) gl: Gl,
 }
 impl GlWindowManagerState {
-    pub(crate) fn create_with_first_winit_window(
-        window_target: &EventLoopWindowTarget<()>,
+    pub(crate) fn create_with_first_winit_window<T>(
+        window_target: &EventLoopWindowTarget<T>,
         window_builder: &WindowBuilder,
     ) -> Result<(Self, Option<Window>), Box<dyn Error>> {
         // Only windows requires the window to be present before creating the display.
