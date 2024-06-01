@@ -119,6 +119,9 @@ impl<State> WindowManager<State> {
         window_builder: WindowBuilder,
         window_state: State,
     ) -> WindowId {
+        let visible = window_builder.window_attributes().visible;
+        let window_builder = window_builder.with_visible(false);
+
         match &mut self.state {
             state @ WindowManagerState::Init => {
                 let gl_state_and_first_window =
@@ -150,7 +153,7 @@ impl<State> WindowManager<State> {
 
                         let mut windows = HashMap::new();
 
-                        Self::init_window(&window.window);
+                        Self::init_window(&window.window, visible);
                         windows.insert(id, StatefulWindow::new(window, window_state));
 
                         *state = WindowManagerState::Gl {
@@ -170,7 +173,7 @@ impl<State> WindowManager<State> {
 
                         let mut windows = HashMap::new();
 
-                        Self::init_window(&window.window);
+                        Self::init_window(&window.window, visible);
                         windows.insert(id, StatefulWindow::new(window, window_state));
 
                         *state = WindowManagerState::Software { windows };
@@ -183,7 +186,7 @@ impl<State> WindowManager<State> {
                     Self::create_software_window(window_target, InitWindow::Other(window_builder));
                 let id = window.id();
 
-                Self::init_window(&window.window);
+                Self::init_window(&window.window, visible);
                 windows.insert(id, StatefulWindow::new(window, window_state));
 
                 id
@@ -194,7 +197,7 @@ impl<State> WindowManager<State> {
                         .unwrap();
                 let id = window.id();
 
-                Self::init_window(&window.window);
+                Self::init_window(&window.window, visible);
                 windows.insert(id, StatefulWindow::new(window, window_state));
 
                 id
@@ -202,8 +205,10 @@ impl<State> WindowManager<State> {
         }
     }
 
-    fn init_window(winit_window: &Window) {
-        winit_window.set_visible(true);
+    fn init_window(winit_window: &Window, visible: bool) {
+        if visible {
+            winit_window.set_visible(true);
+        }
     }
 
     fn create_software_window<T>(
