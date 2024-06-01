@@ -113,7 +113,10 @@ impl SkiaWinitWindow for SoftwareWindow {
     }
 
     fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow)) {
-        self.skia.draw(|canvas| f(canvas, &self.window));
+        self.skia.draw(|canvas| {
+            f(canvas, &self.window);
+            self.window.pre_present_notify();
+        });
     }
 }
 
@@ -135,6 +138,9 @@ impl SkiaWinitWindow for GlWindow {
     }
 
     fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow)) {
-        self.skia.draw(|canvas| f(canvas, &self.window));
+        self.skia.draw(|canvas| {
+            f(canvas, &self.window);
+            self.window.pre_present_notify();
+        });
     }
 }
