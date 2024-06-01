@@ -12,7 +12,7 @@ use skia_safe::{
     gpu::{gl::FramebufferInfo, SurfaceOrigin},
     Canvas, Color, ColorType, Surface,
 };
-use std::{ffi::CString, num::NonZeroU32};
+use std::{error::Error, ffi::CString, fmt::Display, num::NonZeroU32};
 
 pub(crate) struct SkiaGlRenderer {
     skia: SkiaGlSurface,
@@ -24,13 +24,18 @@ impl SkiaGlRenderer {
         width: u32,
         height: u32,
         gl_state: &GlWindowManagerState,
-    ) -> Result<Self, glutin::error::Error> {
+    ) -> Result<Self, SkiaGlRendererNewError> {
+        let (non_zero_width, non_zero_height) = NonZeroU32::new(width)
+            .zip(NonZeroU32::new(height))
+            .ok_or(SkiaGlRendererNewError::ZeroSize)?;
+
         let gl_renderer = GlWindowRenderer::new(
             raw_window_handle,
-            width.try_into().unwrap(),
-            height.try_into().unwrap(),
+            non_zero_width,
+            non_zero_height,
             &gl_state,
-        )?;
+        )
+        .map_err(SkiaGlRendererNewError::Glutin)?;
 
         // The context needs to be current for the Renderer to set up shaders and
         // buffers. It also performs function loading, which needs a current context on
@@ -90,6 +95,31 @@ impl SkiaRenderer for SkiaGlRenderer {
         );
         gl_state.resize_viewport(width, height);
         self.skia.resize(width, height, &gl_state.gl_config);
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum SkiaGlRendererNewError {
+    ZeroSize,
+    Glutin(glutin::error::Error),
+}
+impl Display for SkiaGlRendererNewError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SkiaGlRendererNewError::ZeroSize => f.write_str("Renderer created with zero size"),
+            SkiaGlRendererNewError::Glutin(error) => error.fmt(f),
+        }
+    }
+}
+impl Error for SkiaGlRendererNewError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            SkiaGlRendererNewError::ZeroSize => None,
+            SkiaGlRendererNewError::Glutin(error) => Some(error),
+        }
+    }
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
     }
 }
 

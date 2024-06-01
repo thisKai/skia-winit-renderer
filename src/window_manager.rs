@@ -1,5 +1,5 @@
 use crate::{
-    gl::{GlWindowManagerState, SkiaGlRenderer},
+    gl::{GlWindowManagerState, SkiaGlRenderer, SkiaGlRendererNewError},
     software::SkiaSoftwareRenderer,
     window::{GlWindow, SkiaWinitWindow, SoftwareWindow, Window, WindowCx},
 };
@@ -327,7 +327,7 @@ impl WindowManager {
         window_target: &EventLoopWindowTarget<()>,
         gl_state: &GlWindowManagerState,
         window: InitWindow,
-    ) -> Result<GlWindow, (glutin::error::Error, WinitWindow)> {
+    ) -> Result<GlWindow, (SkiaGlRendererNewError, WinitWindow)> {
         #[cfg(target_os = "android")]
         println!("Android window available");
 

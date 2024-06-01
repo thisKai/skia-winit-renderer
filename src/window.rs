@@ -55,10 +55,11 @@ impl SkiaWindow<SkiaSoftwareRenderer> {
     }
 
     pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
-        self.skia.resize(
-            size.width.try_into().unwrap(),
-            size.height.try_into().unwrap(),
-        )
+        let Some((width, height)) = size.width.try_into().ok().zip(size.height.try_into().ok())
+        else {
+            return;
+        };
+        self.skia.resize(width, height)
     }
 }
 impl SkiaWindow<SkiaGlRenderer> {
@@ -72,11 +73,11 @@ impl<S: SkiaRenderer> SkiaWindow<S> {
         dependency: &S::ResizeDependency,
         size: PhysicalSize<u32>,
     ) {
-        self.skia.resize(
-            dependency,
-            size.width.try_into().unwrap(),
-            size.height.try_into().unwrap(),
-        )
+        let Some((width, height)) = size.width.try_into().ok().zip(size.height.try_into().ok())
+        else {
+            return;
+        };
+        self.skia.resize(dependency, width, height)
     }
     pub(crate) fn draw(&mut self, f: &mut dyn FnMut(&Canvas, &WinitWindow)) {
         self.skia.draw(&mut |canvas| f(canvas, &self.window));
@@ -101,10 +102,11 @@ impl SoftwareWindow {
         Self { skia, window }
     }
     pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
-        self.skia.resize(
-            size.width.try_into().unwrap(),
-            size.height.try_into().unwrap(),
-        );
+        let Some((width, height)) = size.width.try_into().ok().zip(size.height.try_into().ok())
+        else {
+            return;
+        };
+        self.skia.resize(width, height);
     }
 }
 impl SkiaWinitWindow for SoftwareWindow {
