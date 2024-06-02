@@ -37,6 +37,18 @@ skia-safe = { version = "0.73", features = [
     "wayland",
 ] }
 
+[target.'cfg(windows)'.dependencies]
+skia-safe = { version = "0.73", features = ["textlayout", "gl", "d3d"] }
+windows = { version = "0.56", features = [
+    "Win32",
+    "Win32_Graphics",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Direct3D12",
+    "Win32_Graphics_Direct3D",
+    "Win32_Foundation",
+    "Win32_Graphics_Dxgi_Common",
+] }
+
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-glue = "0.7" # Keep in sync with winit dependency
 
