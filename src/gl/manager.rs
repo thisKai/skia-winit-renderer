@@ -39,7 +39,7 @@ impl GlWindowManagerState {
         // windows.
         let template = ConfigTemplateBuilder::new()
             .with_alpha_size(8)
-            .with_transparency(cfg!(any(cgl_backend, windows)));
+            .with_transparency(cfg!(cgl_backend));
 
         let display_builder = DisplayBuilder::new().with_window_builder(window_builder);
 
@@ -49,7 +49,6 @@ impl GlWindowManagerState {
                 // be smooth.
                 configs
                     .reduce(|accum, config| {
-                        dbg!(config.supports_transparency());
                         let transparency_check = config.supports_transparency().unwrap_or(false)
                             & !accum.supports_transparency().unwrap_or(false);
 
