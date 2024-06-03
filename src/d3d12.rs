@@ -107,14 +107,12 @@ impl<State> D3d12WindowManager<State> {
         window_id: &WindowId,
         size: PhysicalSize<u32>,
     ) -> windows::core::Result<()> {
-        let window = self
+        let window: &mut SkiaD3d12Window<State> = self
             .windows
             .get_mut(window_id)
             .ok_or(windows::core::Error::empty())?;
 
-        self.env
-            .direct_context
-            .perform_deferred_cleanup(Default::default(), None);
+        self.env.cleanup();
 
         window
             .swap_chain
@@ -131,7 +129,7 @@ pub(crate) struct D3d12Env {
     direct_context: DirectContext,
 }
 impl D3d12Env {
-    fn new() -> windows::core::Result<Self> {
+    pub(crate) fn new() -> windows::core::Result<Self> {
         let factory: IDXGIFactory4 = unsafe { CreateDXGIFactory1() }?;
         let (adapter, device) = get_hardware_adapter_and_device(&factory)?;
         let queue: ID3D12CommandQueue = unsafe { device.CreateCommandQueue(&Default::default()) }?;
@@ -182,9 +180,9 @@ impl D3d12Env {
             RawWindowHandle::Win32(window_handle) => HWND(window_handle.hwnd as _),
             _ => panic!("not win32"),
         };
-        self.create_hwnd_surface(hwnd, size.width, size.height)
+        self.create_hwnd_swap_chain(hwnd, size.width, size.height)
     }
-    fn create_hwnd_surface(
+    fn create_hwnd_swap_chain(
         &mut self,
         hwnd: HWND,
         width: u32,
@@ -208,6 +206,36 @@ impl D3d12Env {
                     ..Default::default()
                 },
                 None,
+                None,
+            )
+        }?
+        .cast()?;
+
+        let surfaces = self.create_swap_chain_surfaces(&swap_chain, width, height);
+
+        Ok(SkiaD3d12SwapChain::new(swap_chain, surfaces))
+    }
+    pub(crate) fn create_composition_swap_chain(
+        &mut self,
+        width: u32,
+        height: u32,
+    ) -> windows::core::Result<SkiaD3d12SwapChain> {
+        let swap_chain: IDXGISwapChain3 = unsafe {
+            self.factory.CreateSwapChainForComposition(
+                &self.backend_context.queue,
+                &DXGI_SWAP_CHAIN_DESC1 {
+                    Width: width,
+                    Height: height,
+                    Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+                    BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
+                    BufferCount: BUFFER_COUNT,
+                    SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+                    SampleDesc: DXGI_SAMPLE_DESC {
+                        Count: 1,
+                        Quality: 0,
+                    },
+                    ..Default::default()
+                },
                 None,
             )
         }?
@@ -253,6 +281,10 @@ impl D3d12Env {
             (surface, backend_render_target)
         })
     }
+    pub(crate) fn cleanup(&mut self) {
+        self.direct_context
+            .perform_deferred_cleanup(Default::default(), None);
+    }
 }
 
 #[derive(Debug)]
@@ -284,8 +316,8 @@ impl<State> SkiaD3d12Window<State> {
     }
 }
 
-struct SkiaD3d12SwapChain {
-    swap_chain: IDXGISwapChain3,
+pub(crate) struct SkiaD3d12SwapChain {
+    pub(crate) swap_chain: IDXGISwapChain3,
     surfaces: Option<SkiaD3d12SwapChainSurfaceArray>,
 }
 impl SkiaD3d12SwapChain {
@@ -295,7 +327,12 @@ impl SkiaD3d12SwapChain {
             surfaces: Some(surfaces),
         }
     }
-    fn resize(&mut self, env: &mut D3d12Env, width: u32, height: u32) -> windows::core::Result<()> {
+    pub(crate) fn resize(
+        &mut self,
+        env: &mut D3d12Env,
+        width: u32,
+        height: u32,
+    ) -> windows::core::Result<()> {
         self.surfaces = None;
 
         unsafe {
@@ -308,7 +345,11 @@ impl SkiaD3d12SwapChain {
             .replace(env.create_swap_chain_surfaces(&self.swap_chain, width, height));
         Ok(())
     }
-    fn draw(&mut self, env: &mut D3d12Env, mut f: impl FnMut(&Canvas)) -> windows::core::HRESULT {
+    pub(crate) fn draw(
+        &mut self,
+        env: &mut D3d12Env,
+        mut f: impl FnMut(&Canvas),
+    ) -> windows::core::HRESULT {
         let index = unsafe { self.swap_chain.GetCurrentBackBufferIndex() };
         let surface = &mut self.surfaces.as_mut().unwrap()[index as usize].0;
 

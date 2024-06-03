@@ -9,7 +9,7 @@ use winit::{
 fn main() {
     let event_loop = EventLoopBuilder::new().build().unwrap();
 
-    let mut window_manager = DCompWindowManager::new();
+    let mut window_manager = DCompWindowManager::new().unwrap();
 
     event_loop
         .run(|event, elwt| match event {

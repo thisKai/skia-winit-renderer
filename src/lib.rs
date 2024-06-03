@@ -1,5 +1,6 @@
 mod app;
 pub mod d3d12;
+pub mod dcomp;
 mod gl;
 mod manager;
 mod skia;
