@@ -19,18 +19,19 @@ use windows::{
             },
             Dxgi::{
                 Common::{
-                    DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SAMPLE_DESC,
+                    DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_SAMPLE_DESC,
                     DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN,
                 },
                 CreateDXGIFactory1, IDXGIAdapter1, IDXGIFactory4, IDXGISwapChain3,
                 DXGI_ADAPTER_FLAG, DXGI_ADAPTER_FLAG_NONE, DXGI_ADAPTER_FLAG_SOFTWARE,
-                DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_EFFECT_FLIP_DISCARD,
+                DXGI_SWAP_CHAIN_DESC1, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
                 DXGI_USAGE_RENDER_TARGET_OUTPUT,
             },
         },
     },
 };
 use winit::{
+    dpi::PhysicalSize,
     error::OsError,
     event_loop::EventLoopWindowTarget,
     window::{Window, WindowBuilder, WindowId},
@@ -54,8 +55,12 @@ impl D3d12WindowManager {
     ) -> Result<WindowId, CreateD3d12WindowError> {
         self.create_window_with_state(elwt, builder, ())
     }
-    pub fn draw(&mut self, window_id: &WindowId, mut f: impl FnMut(&Canvas, &Window)) {
-        self.draw_with_state(window_id, |canvas, window, _| f(canvas, window));
+    pub fn draw(
+        &mut self,
+        window_id: &WindowId,
+        mut f: impl FnMut(&Canvas, &Window),
+    ) -> windows::core::Result<()> {
+        self.draw_with_state(window_id, |canvas, window, _| f(canvas, window))
     }
 }
 impl<State> D3d12WindowManager<State> {
@@ -90,15 +95,33 @@ impl<State> D3d12WindowManager<State> {
     pub fn draw_with_state(
         &mut self,
         window_id: &WindowId,
-        mut f: impl FnMut(&Canvas, &Window, &State),
-    ) {
+        f: impl FnMut(&Canvas, &Window, &State),
+    ) -> windows::core::Result<()> {
         let Some(window) = self.windows.get_mut(window_id) else {
-            return;
+            return Err(windows::core::Error::empty());
         };
-        window.skia.draw(&mut self.env, |canvas| {
-            f(canvas, &window.winit_window, &window.state);
-            window.winit_window.pre_present_notify();
-        })
+        window.draw(&mut self.env, f)
+    }
+    pub fn resize_window(
+        &mut self,
+        window_id: &WindowId,
+        size: PhysicalSize<u32>,
+    ) -> windows::core::Result<()> {
+        let window = self
+            .windows
+            .get_mut(window_id)
+            .ok_or(windows::core::Error::empty())?;
+
+        self.env
+            .direct_context
+            .perform_deferred_cleanup(Default::default(), None);
+
+        window
+            .swap_chain
+            .resize(&mut self.env, size.width, size.height)?;
+
+        window.winit_window.request_redraw();
+        Ok(())
     }
 }
 
@@ -138,27 +161,35 @@ impl D3d12Env {
         let window = builder
             .build(elwt)
             .map_err(CreateD3d12WindowError::BuildWindow)?;
-        let hwnd = match window.raw_window_handle() {
-            RawWindowHandle::Win32(window_handle) => HWND(window_handle.hwnd as _),
-            _ => panic!("not win32"),
-        };
-        let size = window.inner_size();
-        let skia = self
-            .create_hwnd_surface(hwnd, size.width, size.height)
+
+        let swap_chain = self
+            .create_window_surface(&window)
             .map_err(CreateD3d12WindowError::CreateSurface)?;
 
         Ok(SkiaD3d12Window {
             winit_window: window,
-            skia,
+            swap_chain,
             state,
         })
+    }
+    fn create_window_surface(
+        &mut self,
+        window: &Window,
+    ) -> windows::core::Result<SkiaD3d12SwapChain> {
+        let size = window.inner_size();
+
+        let hwnd = match window.raw_window_handle() {
+            RawWindowHandle::Win32(window_handle) => HWND(window_handle.hwnd as _),
+            _ => panic!("not win32"),
+        };
+        self.create_hwnd_surface(hwnd, size.width, size.height)
     }
     fn create_hwnd_surface(
         &mut self,
         hwnd: HWND,
         width: u32,
         height: u32,
-    ) -> windows::core::Result<SkiaD3d12Renderer> {
+    ) -> windows::core::Result<SkiaD3d12SwapChain> {
         let swap_chain: IDXGISwapChain3 = unsafe {
             self.factory.CreateSwapChainForHwnd(
                 &self.backend_context.queue,
@@ -169,7 +200,7 @@ impl D3d12Env {
                     Format: DXGI_FORMAT_R8G8B8A8_UNORM,
                     BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
                     BufferCount: BUFFER_COUNT,
-                    SwapEffect: DXGI_SWAP_EFFECT_FLIP_DISCARD,
+                    SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
                     SampleDesc: DXGI_SAMPLE_DESC {
                         Count: 1,
                         Quality: 0,
@@ -182,7 +213,17 @@ impl D3d12Env {
         }?
         .cast()?;
 
-        let surfaces: [_; BUFFER_COUNT as _] = std::array::from_fn(|i| {
+        let surfaces = self.create_swap_chain_surfaces(&swap_chain, width, height);
+
+        Ok(SkiaD3d12SwapChain::new(swap_chain, surfaces))
+    }
+    fn create_swap_chain_surfaces(
+        &mut self,
+        swap_chain: &IDXGISwapChain3,
+        width: u32,
+        height: u32,
+    ) -> SkiaD3d12SwapChainSurfaceArray {
+        std::array::from_fn(|i| {
             let resource = unsafe { swap_chain.GetBuffer(i as u32).unwrap() };
 
             let backend_render_target = BackendRenderTarget::new_d3d(
@@ -210,10 +251,6 @@ impl D3d12Env {
             .unwrap();
 
             (surface, backend_render_target)
-        });
-        Ok(SkiaD3d12Renderer {
-            swap_chain,
-            surfaces,
         })
     }
 }
@@ -228,26 +265,63 @@ const BUFFER_COUNT: u32 = 2;
 
 pub struct SkiaD3d12Window<State = ()> {
     state: State,
-    skia: SkiaD3d12Renderer,
+    swap_chain: SkiaD3d12SwapChain,
     winit_window: Window,
 }
+impl<State> SkiaD3d12Window<State> {
+    fn draw(
+        &mut self,
+        env: &mut D3d12Env,
+        mut f: impl FnMut(&Canvas, &Window, &State),
+    ) -> windows::core::Result<()> {
+        self.swap_chain
+            .draw(env, |canvas| {
+                f(canvas, &self.winit_window, &self.state);
 
-struct SkiaD3d12Renderer {
-    swap_chain: IDXGISwapChain3,
-    surfaces: [(Surface, BackendRenderTarget); BUFFER_COUNT as _],
+                self.winit_window.pre_present_notify();
+            })
+            .ok()
+    }
 }
-impl SkiaD3d12Renderer {
-    fn draw(&mut self, env: &mut D3d12Env, mut f: impl FnMut(&Canvas)) {
+
+struct SkiaD3d12SwapChain {
+    swap_chain: IDXGISwapChain3,
+    surfaces: Option<SkiaD3d12SwapChainSurfaceArray>,
+}
+impl SkiaD3d12SwapChain {
+    fn new(swap_chain: IDXGISwapChain3, surfaces: SkiaD3d12SwapChainSurfaceArray) -> Self {
+        Self {
+            swap_chain,
+            surfaces: Some(surfaces),
+        }
+    }
+    fn resize(&mut self, env: &mut D3d12Env, width: u32, height: u32) -> windows::core::Result<()> {
+        self.surfaces = None;
+
+        unsafe {
+            self.swap_chain
+                .ResizeBuffers(BUFFER_COUNT, width, height, DXGI_FORMAT_UNKNOWN, 0)
+        }
+        .unwrap();
+
+        self.surfaces
+            .replace(env.create_swap_chain_surfaces(&self.swap_chain, width, height));
+        Ok(())
+    }
+    fn draw(&mut self, env: &mut D3d12Env, mut f: impl FnMut(&Canvas)) -> windows::core::HRESULT {
         let index = unsafe { self.swap_chain.GetCurrentBackBufferIndex() };
-        let (surface, _) = &mut self.surfaces[index as usize];
+        let surface = &mut self.surfaces.as_mut().unwrap()[index as usize].0;
+
         let canvas = surface.canvas();
 
         f(&canvas);
 
         env.direct_context.flush_and_submit_surface(surface, None);
-        unsafe { self.swap_chain.Present(1, 0) }.unwrap();
+        unsafe { self.swap_chain.Present(1, 0) }
     }
 }
+
+type SkiaD3d12SwapChainSurfaceArray = [(Surface, BackendRenderTarget); BUFFER_COUNT as _];
 
 fn get_hardware_adapter_and_device(
     factory: &IDXGIFactory4,

@@ -15,7 +15,7 @@ fn main() {
         .run(|event, elwt| match event {
             Event::Resumed => {
                 window_manager
-                    .create_window(elwt, WindowBuilder::new().with_resizable(false))
+                    .create_window(elwt, WindowBuilder::new().with_transparent(true))
                     .unwrap();
             }
             Event::WindowEvent { window_id, event } => match event {
@@ -24,17 +24,22 @@ fn main() {
                     elwt.exit();
                 }
                 WindowEvent::RedrawRequested => {
-                    window_manager.draw(&window_id, |canvas, window| {
-                        canvas.clear(colors::BLACK);
+                    window_manager
+                        .draw(&window_id, |canvas, window| {
+                            canvas.clear(colors::TRANSPARENT);
 
-                        let size = window.inner_size();
+                            let size = window.inner_size();
 
-                        canvas.draw_circle(
-                            ((size.width / 2) as i32, (size.height / 2) as i32),
-                            size.width.min(size.height) as f32 / 2.0,
-                            &Paint::new(colors::CYAN, None),
-                        );
-                    });
+                            canvas.draw_circle(
+                                ((size.width / 2) as i32, (size.height / 2) as i32),
+                                size.width.min(size.height) as f32 / 2.0,
+                                &Paint::new(colors::CYAN, None),
+                            );
+                        })
+                        .unwrap();
+                }
+                WindowEvent::Resized(size) => {
+                    window_manager.resize_window(&window_id, size).unwrap();
                 }
                 _ => {}
             },
