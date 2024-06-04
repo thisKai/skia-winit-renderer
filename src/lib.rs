@@ -5,6 +5,7 @@ mod gl;
 mod manager;
 pub mod opengl;
 mod skia;
+pub mod softbuffer;
 mod software;
 mod window;
 mod window_manager;
