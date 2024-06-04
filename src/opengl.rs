@@ -7,7 +7,7 @@ use glutin::{
         PossiblyCurrentContext, PossiblyCurrentGlContext, Version,
     },
     display::{Display, GetGlDisplay, GlDisplay},
-    surface::{GlSurface, SurfaceAttributesBuilder, WindowSurface},
+    surface::{GlSurface, SurfaceAttributesBuilder, SwapInterval, WindowSurface},
 };
 use glutin_winit::DisplayBuilder;
 use provide_any::provide_any::request_mut;
@@ -117,7 +117,6 @@ impl SkiaGraphicsEnv for OpenGlEnv {
 pub(crate) struct GlEnv {
     config: Config,
     display: Display,
-    direct_context: DirectContext,
     fb_info: FramebufferInfo,
 }
 impl GlEnv {
@@ -240,14 +239,21 @@ impl GlEnv {
         let surface =
             Self::create_surface(&window, fb_info, &mut gr_context, num_samples, stencil_size);
 
+        // Try setting vsync.
+        if let Err(res) = gl_surface
+            .set_swap_interval(&gl_context, SwapInterval::Wait(NonZeroU32::new(1).unwrap()))
+        {
+            eprintln!("Error setting vsync: {:?}", res);
+        }
+
         let env = Self {
             config: gl_config,
             display: gl_display,
-            direct_context: gr_context,
             fb_info,
         };
         let renderer = SkiaOpenGlRenderer {
             surface,
+            direct_context: gr_context,
             gl_surface,
             gl_context: Some(gl_context),
         };
@@ -375,11 +381,11 @@ impl GlEnv {
         let env = Self {
             config: gl_config,
             display: gl_display,
-            direct_context: gr_context,
             fb_info,
         };
         let window = GlWindow {
             surface,
+            direct_context: gr_context,
             gl_surface,
             gl_context,
             winit_window: window,
@@ -387,14 +393,18 @@ impl GlEnv {
         Ok((env, window))
     }
 
-    fn create_window_surface(&mut self, window: &Window) -> Surface {
+    fn create_window_surface(
+        &mut self,
+        window: &Window,
+        direct_context: &mut DirectContext,
+    ) -> Surface {
         let num_samples = self.config.num_samples() as usize;
         let stencil_size = self.config.stencil_size() as usize;
 
         Self::create_surface(
             window,
             self.fb_info,
-            &mut self.direct_context,
+            direct_context,
             num_samples,
             stencil_size,
         )
@@ -433,6 +443,7 @@ impl GlEnv {
 
 pub struct GlWindow {
     surface: Surface,
+    direct_context: DirectContext,
     gl_surface: glutin::surface::Surface<WindowSurface>,
     gl_context: PossiblyCurrentContext,
     winit_window: Window,
@@ -454,7 +465,7 @@ impl GlWindow {
             NonZeroU32::new(height.max(1)).unwrap(),
         );
 
-        self.surface = env.create_window_surface(&self.winit_window);
+        self.surface = env.create_window_surface(&self.winit_window, &mut self.direct_context);
     }
     fn draw(
         &mut self,
@@ -466,7 +477,7 @@ impl GlWindow {
 
         f(canvas, &self.winit_window);
 
-        env.direct_context.flush_and_submit();
+        self.direct_context.flush_and_submit();
         self.gl_surface.swap_buffers(&self.gl_context)
     }
     pub(crate) fn make_current_if_needed(&self) -> glutin::error::Result<()> {
@@ -496,6 +507,7 @@ pub fn gl_config_picker(configs: Box<dyn Iterator<Item = Config> + '_>) -> Confi
 
 pub struct SkiaOpenGlRenderer {
     surface: Surface,
+    direct_context: DirectContext,
     gl_context: Option<PossiblyCurrentContext>,
     gl_surface: glutin::surface::Surface<WindowSurface>,
 }
@@ -531,12 +543,7 @@ impl SkiaOpenGlRenderer {
             NonZeroU32::new(height.max(1)).unwrap(),
         );
 
-        self.surface = env.create_window_surface(&window);
-    }
-}
-impl Drop for SkiaOpenGlRenderer {
-    fn drop(&mut self) {
-        self.make_not_current();
+        self.surface = env.create_window_surface(&window, &mut self.direct_context);
     }
 }
 impl SkiaRender for SkiaOpenGlRenderer {
@@ -550,7 +557,7 @@ impl SkiaRender for SkiaOpenGlRenderer {
         let env = request_mut::<OpenGlEnv>(env).unwrap();
         let env = env.state.as_mut().unwrap();
 
-        env.direct_context.flush_and_submit();
+        self.direct_context.flush_and_submit();
         self.gl_surface.swap_buffers(gl_context).unwrap();
     }
     fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, window: &Window) {
