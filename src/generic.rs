@@ -149,6 +149,38 @@ impl Provider for Env {
         }
     }
 }
+impl Provider for SoftBufferEnv {
+    fn provide<'a>(&'a self, req: &mut Demand<'a>) {
+        req.provide_ref::<Self>(self);
+    }
+    fn provide_mut<'a>(&'a mut self, req: &mut Demand<'a>) {
+        req.provide_mut::<Self>(self);
+    }
+}
+impl Provider for OpenGlEnv {
+    fn provide<'a>(&'a self, req: &mut Demand<'a>) {
+        req.provide_ref::<Self>(self);
+    }
+    fn provide_mut<'a>(&'a mut self, req: &mut Demand<'a>) {
+        req.provide_mut::<Self>(self);
+    }
+}
+impl Provider for WindowsUiCompositionEnv {
+    fn provide<'a>(&'a self, req: &mut Demand<'a>) {
+        req.provide_ref::<Self>(self);
+    }
+    fn provide_mut<'a>(&'a mut self, req: &mut Demand<'a>) {
+        req.provide_mut::<Self>(self);
+    }
+}
+impl Provider for D3d12Env {
+    fn provide<'a>(&'a self, req: &mut Demand<'a>) {
+        req.provide_ref::<Self>(self);
+    }
+    fn provide_mut<'a>(&'a mut self, req: &mut Demand<'a>) {
+        req.provide_mut::<Self>(self);
+    }
+}
 
 pub trait InitEnv: SkiaGraphicsEnv + Sized {
     fn env(env: &mut Env) -> &mut Option<Self>;
