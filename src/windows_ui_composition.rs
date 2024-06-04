@@ -29,18 +29,18 @@ use winit::{
 };
 
 use crate::{
-    d3d12::{D3d12Env, SkiaD3d12SwapChain},
+    d3d12::{D3d12Backend, SkiaD3d12SwapChain},
     generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender},
 };
 
 pub struct WindowsUiCompositionWindowManager<State = ()> {
-    env: WindowsUiCompositionEnv,
+    env: WindowsUiCompositionBackend,
     windows: HashMap<WindowId, WindowsUiCompositionCompWindow<State>>,
 }
 impl WindowsUiCompositionWindowManager {
     pub fn new() -> windows::core::Result<Self> {
         Ok(Self {
-            env: WindowsUiCompositionEnv::new()?,
+            env: WindowsUiCompositionBackend::new()?,
             windows: HashMap::new(),
         })
     }
@@ -142,19 +142,19 @@ pub enum CreateWindowError {
     CreateTarget(windows::core::Error),
 }
 
-pub struct WindowsUiCompositionEnv {
+pub struct WindowsUiCompositionBackend {
     _dispatcher_queue_controller: DispatcherQueueController,
-    d3d12: D3d12Env,
+    d3d12: D3d12Backend,
 }
-impl WindowsUiCompositionEnv {
+impl WindowsUiCompositionBackend {
     pub(crate) fn new() -> windows::core::Result<Self> {
         Ok(Self {
             _dispatcher_queue_controller: create_dispatcher_queue_controller_for_current_thread()?,
-            d3d12: D3d12Env::new()?,
+            d3d12: D3d12Backend::new()?,
         })
     }
 }
-impl SkiaGraphicsBackend for WindowsUiCompositionEnv {
+impl SkiaGraphicsBackend for WindowsUiCompositionBackend {
     type CreateError = windows::core::Error;
     type CreateWindowError = CreateWindowError;
 
@@ -235,7 +235,7 @@ impl<State> WindowsUiCompositionCompWindow<State> {
     }
     fn resize(
         &mut self,
-        env: &mut WindowsUiCompositionEnv,
+        env: &mut WindowsUiCompositionBackend,
         width: u32,
         height: u32,
     ) -> windows::core::Result<()> {
@@ -261,7 +261,7 @@ impl<State> WindowsUiCompositionCompWindow<State> {
     }
     fn draw(
         &mut self,
-        env: &mut WindowsUiCompositionEnv,
+        env: &mut WindowsUiCompositionBackend,
         mut f: impl FnMut(&Canvas, &Window, &State),
     ) -> windows::core::Result<()> {
         self.swap_chain
@@ -322,14 +322,14 @@ impl SkiaRender for WindowsUiCompositionRenderer {
     }
 
     fn present(&mut self, env: &mut dyn Provider) {
-        let env = request_mut::<WindowsUiCompositionEnv>(env).unwrap();
+        let env = request_mut::<WindowsUiCompositionBackend>(env).unwrap();
         self.swap_chain.present(&mut env.d3d12);
     }
     fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, _: &Window) {
         if size.width == 0 || size.height == 0 {
             return;
         }
-        let env = request_mut::<WindowsUiCompositionEnv>(env).unwrap();
+        let env = request_mut::<WindowsUiCompositionBackend>(env).unwrap();
 
         self.swap_chain
             .resize(&mut env.d3d12, size.width, size.height)

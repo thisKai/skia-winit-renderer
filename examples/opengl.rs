@@ -1,5 +1,5 @@
 use skia_safe::{colors, Paint};
-use skia_winit_renderer::{generic::WindowManager, opengl::OpenGlEnv};
+use skia_winit_renderer::{generic::WindowManager, opengl::OpenGlBackend};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
@@ -15,7 +15,7 @@ fn main() {
         .run(|event, elwt| match event {
             Event::Resumed => {
                 window_manager
-                    .create::<OpenGlEnv, _>(elwt, WindowBuilder::new().with_transparent(true))
+                    .create::<OpenGlBackend, _>(elwt, WindowBuilder::new().with_transparent(true))
                     .unwrap();
             }
             Event::WindowEvent { window_id, event } => match event {

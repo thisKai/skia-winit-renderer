@@ -89,10 +89,10 @@ impl GlWindowManager {
 }
 
 #[derive(Default)]
-pub struct OpenGlEnv {
+pub struct OpenGlBackend {
     state: Option<GlEnv>,
 }
-impl SkiaGraphicsBackend for OpenGlEnv {
+impl SkiaGraphicsBackend for OpenGlBackend {
     type CreateError = Infallible;
     type CreateWindowError = Box<dyn Error>;
 
@@ -555,14 +555,14 @@ impl SkiaRender for SkiaOpenGlRenderer {
 
     fn present(&mut self, env: &mut dyn Provider) {
         let gl_context = self.gl_context.as_ref().unwrap();
-        let env = request_mut::<OpenGlEnv>(env).unwrap();
+        let env = request_mut::<OpenGlBackend>(env).unwrap();
         let env = env.state.as_mut().unwrap();
 
         self.direct_context.flush_and_submit();
         self.gl_surface.swap_buffers(gl_context).unwrap();
     }
     fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, window: &Window) {
-        let env = request_mut::<OpenGlEnv>(env).unwrap();
+        let env = request_mut::<OpenGlBackend>(env).unwrap();
         let env = env.state.as_mut().unwrap();
 
         self.resize(env, size, window);

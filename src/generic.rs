@@ -10,19 +10,19 @@ use winit::{
 };
 
 use crate::{
-    d3d12::D3d12Env, opengl::OpenGlEnv, softbuffer::SoftBufferEnv,
-    windows_ui_composition::WindowsUiCompositionEnv,
+    d3d12::D3d12Backend, opengl::OpenGlBackend, softbuffer::SoftBufferBackend,
+    windows_ui_composition::WindowsUiCompositionBackend,
 };
 
 #[derive(Default)]
 pub struct WindowManager<State = ()> {
-    env: Env,
+    env: AnyBackend,
     windows: HashMap<WindowId, StatefulWindow<State>>,
 }
 impl WindowManager {
     pub fn new() -> Self {
         Self {
-            env: Env::default(),
+            env: AnyBackend::default(),
             windows: HashMap::new(),
         }
     }
@@ -43,7 +43,7 @@ impl WindowManager {
 impl<State> WindowManager<State> {
     pub fn with_state() -> Self {
         Self {
-            env: Env::default(),
+            env: AnyBackend::default(),
             windows: HashMap::new(),
         }
     }
@@ -120,43 +120,43 @@ pub enum CreateWindowError {
 }
 
 #[derive(Default)]
-pub struct Env {
-    softbuffer: Option<SoftBufferEnv>,
-    opengl: Option<OpenGlEnv>,
-    windows_ui_composition: Option<WindowsUiCompositionEnv>,
-    d3d12: Option<D3d12Env>,
+pub struct AnyBackend {
+    softbuffer: Option<SoftBufferBackend>,
+    opengl: Option<OpenGlBackend>,
+    windows_ui_composition: Option<WindowsUiCompositionBackend>,
+    d3d12: Option<D3d12Backend>,
 }
-impl Provider for Env {
+impl Provider for AnyBackend {
     fn provide<'a>(&'a self, request: &mut Demand<'a>) {
         if let Some(env) = &self.softbuffer {
-            request.provide_ref::<SoftBufferEnv>(env);
+            request.provide_ref::<SoftBufferBackend>(env);
         }
         if let Some(env) = &self.opengl {
-            request.provide_ref::<OpenGlEnv>(env);
+            request.provide_ref::<OpenGlBackend>(env);
         }
         if let Some(env) = &self.windows_ui_composition {
-            request.provide_ref::<WindowsUiCompositionEnv>(env);
+            request.provide_ref::<WindowsUiCompositionBackend>(env);
         }
         if let Some(env) = &self.d3d12 {
-            request.provide_ref::<D3d12Env>(env);
+            request.provide_ref::<D3d12Backend>(env);
         }
     }
     fn provide_mut<'a>(&'a mut self, request: &mut Demand<'a>) {
         if let Some(env) = &mut self.softbuffer {
-            request.provide_mut::<SoftBufferEnv>(env);
+            request.provide_mut::<SoftBufferBackend>(env);
         }
         if let Some(env) = &mut self.opengl {
-            request.provide_mut::<OpenGlEnv>(env);
+            request.provide_mut::<OpenGlBackend>(env);
         }
         if let Some(env) = &mut self.windows_ui_composition {
-            request.provide_mut::<WindowsUiCompositionEnv>(env);
+            request.provide_mut::<WindowsUiCompositionBackend>(env);
         }
         if let Some(env) = &mut self.d3d12 {
-            request.provide_mut::<D3d12Env>(env);
+            request.provide_mut::<D3d12Backend>(env);
         }
     }
 }
-impl Provider for SoftBufferEnv {
+impl Provider for SoftBufferBackend {
     fn provide<'a>(&'a self, req: &mut Demand<'a>) {
         req.provide_ref::<Self>(self);
     }
@@ -164,7 +164,7 @@ impl Provider for SoftBufferEnv {
         req.provide_mut::<Self>(self);
     }
 }
-impl Provider for OpenGlEnv {
+impl Provider for OpenGlBackend {
     fn provide<'a>(&'a self, req: &mut Demand<'a>) {
         req.provide_ref::<Self>(self);
     }
@@ -172,7 +172,7 @@ impl Provider for OpenGlEnv {
         req.provide_mut::<Self>(self);
     }
 }
-impl Provider for WindowsUiCompositionEnv {
+impl Provider for WindowsUiCompositionBackend {
     fn provide<'a>(&'a self, req: &mut Demand<'a>) {
         req.provide_ref::<Self>(self);
     }
@@ -180,7 +180,7 @@ impl Provider for WindowsUiCompositionEnv {
         req.provide_mut::<Self>(self);
     }
 }
-impl Provider for D3d12Env {
+impl Provider for D3d12Backend {
     fn provide<'a>(&'a self, req: &mut Demand<'a>) {
         req.provide_ref::<Self>(self);
     }
@@ -190,25 +190,25 @@ impl Provider for D3d12Env {
 }
 
 pub trait InitEnv: SkiaGraphicsBackend + Sized {
-    fn env(env: &mut Env) -> &mut Option<Self>;
+    fn env(env: &mut AnyBackend) -> &mut Option<Self>;
 }
-impl InitEnv for SoftBufferEnv {
-    fn env(env: &mut Env) -> &mut Option<Self> {
+impl InitEnv for SoftBufferBackend {
+    fn env(env: &mut AnyBackend) -> &mut Option<Self> {
         &mut env.softbuffer
     }
 }
-impl InitEnv for OpenGlEnv {
-    fn env(env: &mut Env) -> &mut Option<Self> {
+impl InitEnv for OpenGlBackend {
+    fn env(env: &mut AnyBackend) -> &mut Option<Self> {
         &mut env.opengl
     }
 }
-impl InitEnv for D3d12Env {
-    fn env(env: &mut Env) -> &mut Option<Self> {
+impl InitEnv for D3d12Backend {
+    fn env(env: &mut AnyBackend) -> &mut Option<Self> {
         &mut env.d3d12
     }
 }
-impl InitEnv for WindowsUiCompositionEnv {
-    fn env(env: &mut Env) -> &mut Option<Self> {
+impl InitEnv for WindowsUiCompositionBackend {
+    fn env(env: &mut AnyBackend) -> &mut Option<Self> {
         &mut env.windows_ui_composition
     }
 }
@@ -254,7 +254,7 @@ impl RenderWindow {
             window,
         }
     }
-    fn draw(&mut self, env: &mut Env, mut f: impl FnMut(&Canvas, &Window)) {
+    fn draw(&mut self, env: &mut AnyBackend, mut f: impl FnMut(&Canvas, &Window)) {
         let surface = self.render.prepare_and_get_surface(env);
         let canvas = surface.canvas();
 

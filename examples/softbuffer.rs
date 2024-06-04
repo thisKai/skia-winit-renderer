@@ -1,5 +1,5 @@
 use skia_safe::{colors, Paint};
-use skia_winit_renderer::{generic::WindowManager, softbuffer::SoftBufferEnv};
+use skia_winit_renderer::{generic::WindowManager, softbuffer::SoftBufferBackend};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
@@ -15,7 +15,10 @@ fn main() {
         .run(|event, elwt| match event {
             Event::Resumed => {
                 window_manager
-                    .create::<SoftBufferEnv, _>(elwt, WindowBuilder::new().with_transparent(true))
+                    .create::<SoftBufferBackend, _>(
+                        elwt,
+                        WindowBuilder::new().with_transparent(true),
+                    )
                     .unwrap();
             }
             Event::WindowEvent { window_id, event } => match event {

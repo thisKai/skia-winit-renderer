@@ -29,7 +29,7 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::d3d12::{D3d12Env, SkiaD3d12SwapChain};
+use crate::d3d12::{D3d12Backend, SkiaD3d12SwapChain};
 
 pub struct DCompWindowManager<State = ()> {
     env: DCompEnv,
@@ -137,7 +137,7 @@ pub enum CreateDCompWindowError {
 struct DCompEnv {
     d3d11_device: ID3D11Device,
     dcomp_desktop_device: IDCompositionDesktopDevice,
-    d3d12: D3d12Env,
+    d3d12: D3d12Backend,
 }
 impl DCompEnv {
     pub fn new() -> windows::core::Result<Self> {
@@ -150,7 +150,7 @@ impl DCompEnv {
             Ok(Self {
                 d3d11_device,
                 dcomp_desktop_device,
-                d3d12: D3d12Env::new()?,
+                d3d12: D3d12Backend::new()?,
             })
         }
     }

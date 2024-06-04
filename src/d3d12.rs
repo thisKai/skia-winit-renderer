@@ -41,13 +41,13 @@ use winit::{
 use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
 
 pub struct D3d12WindowManager<State = ()> {
-    env: D3d12Env,
+    env: D3d12Backend,
     windows: HashMap<WindowId, SkiaD3d12Window<State>>,
 }
 impl D3d12WindowManager {
     pub fn new() -> windows::core::Result<Self> {
         Ok(Self {
-            env: D3d12Env::new()?,
+            env: D3d12Backend::new()?,
             windows: HashMap::new(),
         })
     }
@@ -69,7 +69,7 @@ impl D3d12WindowManager {
 impl<State> D3d12WindowManager<State> {
     pub fn with_state() -> windows::core::Result<Self> {
         Ok(Self {
-            env: D3d12Env::new()?,
+            env: D3d12Backend::new()?,
             windows: HashMap::new(),
         })
     }
@@ -126,12 +126,12 @@ impl<State> D3d12WindowManager<State> {
     }
 }
 
-pub struct D3d12Env {
+pub struct D3d12Backend {
     factory: IDXGIFactory4,
     backend_context: BackendContext,
     direct_context: DirectContext,
 }
-impl D3d12Env {
+impl D3d12Backend {
     pub(crate) fn new() -> windows::core::Result<Self> {
         let factory: IDXGIFactory4 = unsafe { CreateDXGIFactory1() }?;
         let (adapter, device) = get_hardware_adapter_and_device(&factory)?;
@@ -290,7 +290,7 @@ impl D3d12Env {
             .perform_deferred_cleanup(Default::default(), None);
     }
 }
-impl SkiaGraphicsBackend for D3d12Env {
+impl SkiaGraphicsBackend for D3d12Backend {
     type CreateError = windows::core::Error;
     type CreateWindowError = CreateD3d12WindowError;
 
@@ -330,7 +330,7 @@ pub struct SkiaD3d12Window<State = ()> {
 impl<State> SkiaD3d12Window<State> {
     fn draw(
         &mut self,
-        env: &mut D3d12Env,
+        env: &mut D3d12Backend,
         mut f: impl FnMut(&Canvas, &Window, &State),
     ) -> windows::core::Result<()> {
         self.swap_chain
@@ -356,7 +356,7 @@ impl SkiaD3d12SwapChain {
     }
     pub(crate) fn resize(
         &mut self,
-        env: &mut D3d12Env,
+        env: &mut D3d12Backend,
         width: u32,
         height: u32,
     ) -> windows::core::Result<()> {
@@ -376,7 +376,7 @@ impl SkiaD3d12SwapChain {
     }
     pub(crate) fn draw(
         &mut self,
-        env: &mut D3d12Env,
+        env: &mut D3d12Backend,
         mut f: impl FnMut(&Canvas),
     ) -> windows::core::HRESULT {
         let index = unsafe { self.swap_chain.GetCurrentBackBufferIndex() };
@@ -389,7 +389,7 @@ impl SkiaD3d12SwapChain {
         env.direct_context.flush_and_submit_surface(surface, None);
         unsafe { self.swap_chain.Present(1, 0) }
     }
-    pub(crate) fn present(&mut self, env: &mut D3d12Env) {
+    pub(crate) fn present(&mut self, env: &mut D3d12Backend) {
         let surface = self.get_surface();
         env.direct_context.flush_and_submit_surface(surface, None);
         unsafe { self.swap_chain.Present(1, 0) }.ok().unwrap()
@@ -405,11 +405,11 @@ impl SkiaRender for SkiaD3d12SwapChain {
     }
 
     fn present(&mut self, env: &mut dyn Provider) {
-        let env = request_mut::<D3d12Env>(env).unwrap();
+        let env = request_mut::<D3d12Backend>(env).unwrap();
         self.present(env);
     }
     fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, _: &Window) {
-        let env = request_mut::<D3d12Env>(env).unwrap();
+        let env = request_mut::<D3d12Backend>(env).unwrap();
         self.resize(env, size.width, size.height).unwrap()
     }
 }

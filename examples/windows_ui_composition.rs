@@ -1,6 +1,6 @@
 use skia_safe::{colors, Paint};
 use skia_winit_renderer::{
-    generic::WindowManager, windows_ui_composition::WindowsUiCompositionEnv,
+    generic::WindowManager, windows_ui_composition::WindowsUiCompositionBackend,
 };
 use winit::{
     event::{Event, WindowEvent},
@@ -17,7 +17,7 @@ fn main() {
         .run(|event, elwt| match event {
             Event::Resumed => {
                 window_manager
-                    .create::<WindowsUiCompositionEnv, _>(
+                    .create::<WindowsUiCompositionBackend, _>(
                         elwt,
                         WindowBuilder::new().with_transparent(true),
                     )

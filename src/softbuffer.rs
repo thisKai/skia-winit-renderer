@@ -16,13 +16,13 @@ use winit::{
 use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
 
 pub struct SoftBufferWindowManager {
-    env: SoftBufferEnv,
+    env: SoftBufferBackend,
     windows: HashMap<WindowId, SoftBufferWindow>,
 }
 impl SoftBufferWindowManager {
     pub fn new<D: HasRawDisplayHandle>(display: &D) -> Result<Self, SoftBufferError> {
         Ok(Self {
-            env: SoftBufferEnv::new(display.raw_display_handle())?,
+            env: SoftBufferBackend::new(display.raw_display_handle())?,
             windows: HashMap::new(),
         })
     }
@@ -93,10 +93,10 @@ pub enum CreateWindowError {
     SoftBuffer(SoftBufferError),
 }
 
-pub struct SoftBufferEnv {
+pub struct SoftBufferBackend {
     context: Context,
 }
-impl SoftBufferEnv {
+impl SoftBufferBackend {
     pub(crate) fn new(raw_display_handle: RawDisplayHandle) -> Result<Self, SoftBufferError> {
         Ok(Self {
             context: unsafe { Context::from_raw(raw_display_handle) }?,
@@ -109,7 +109,7 @@ impl SoftBufferEnv {
         Ok(unsafe { SoftBufferSurface::from_raw(&self.context, raw_window_handle)? })
     }
 }
-impl SkiaGraphicsBackend for SoftBufferEnv {
+impl SkiaGraphicsBackend for SoftBufferBackend {
     type CreateError = SoftBufferError;
     type CreateWindowError = CreateWindowError;
 

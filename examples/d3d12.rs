@@ -1,5 +1,5 @@
 use skia_safe::{colors, Paint};
-use skia_winit_renderer::{d3d12::D3d12Env, generic::WindowManager};
+use skia_winit_renderer::{d3d12::D3d12Backend, generic::WindowManager};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
@@ -15,7 +15,7 @@ fn main() {
         .run(|event, elwt| match event {
             Event::Resumed => {
                 window_manager
-                    .create::<D3d12Env, _>(elwt, WindowBuilder::new().with_transparent(true))
+                    .create::<D3d12Backend, _>(elwt, WindowBuilder::new().with_transparent(true))
                     .unwrap();
             }
             Event::WindowEvent { window_id, event } => match event {
