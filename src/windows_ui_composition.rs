@@ -30,7 +30,7 @@ use winit::{
 
 use crate::{
     d3d12::{D3d12Env, SkiaD3d12SwapChain},
-    generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender},
+    generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender},
 };
 
 pub struct WindowsUiCompositionWindowManager<State = ()> {
@@ -154,7 +154,7 @@ impl WindowsUiCompositionEnv {
         })
     }
 }
-impl SkiaGraphicsEnv for WindowsUiCompositionEnv {
+impl SkiaGraphicsBackend for WindowsUiCompositionEnv {
     type CreateError = windows::core::Error;
     type CreateWindowError = CreateWindowError;
 

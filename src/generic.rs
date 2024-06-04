@@ -32,7 +32,7 @@ impl WindowManager {
         builder: WindowBuilder,
     ) -> Result<WindowId, BackendError<Env>>
     where
-        Env: SkiaGraphicsEnv + InitEnv + 'static,
+        Env: SkiaGraphicsBackend + InitEnv + 'static,
     {
         self.create_with_state::<Env, _>(elwt, builder, ())
     }
@@ -54,7 +54,7 @@ impl<State> WindowManager<State> {
         state: State,
     ) -> Result<WindowId, BackendError<Env>>
     where
-        Env: SkiaGraphicsEnv + InitEnv + 'static,
+        Env: SkiaGraphicsBackend + InitEnv + 'static,
     {
         self.create_env_if_absent::<Env, _>(elwt)
             .map_err(BackendError::Create)?;
@@ -104,7 +104,7 @@ impl<State> WindowManager<State> {
         elwt: &EventLoopWindowTarget<T>,
     ) -> Result<(), Env::CreateError>
     where
-        Env: SkiaGraphicsEnv + InitEnv + 'static,
+        Env: SkiaGraphicsBackend + InitEnv + 'static,
     {
         let exists = request_ref::<Env>(&self.env).is_some();
         if !exists {
@@ -189,7 +189,7 @@ impl Provider for D3d12Env {
     }
 }
 
-pub trait InitEnv: SkiaGraphicsEnv + Sized {
+pub trait InitEnv: SkiaGraphicsBackend + Sized {
     fn env(env: &mut Env) -> &mut Option<Self>;
 }
 impl InitEnv for SoftBufferEnv {
@@ -213,7 +213,7 @@ impl InitEnv for WindowsUiCompositionEnv {
     }
 }
 
-pub trait SkiaGraphicsEnv: Sized {
+pub trait SkiaGraphicsBackend: Sized {
     type CreateError: Debug;
     type CreateWindowError: Debug;
 
@@ -225,11 +225,11 @@ pub trait SkiaGraphicsEnv: Sized {
     ) -> Result<RenderWindow, Self::CreateWindowError>;
 }
 
-pub enum BackendError<B: SkiaGraphicsEnv> {
+pub enum BackendError<B: SkiaGraphicsBackend> {
     Create(B::CreateError),
     CreateWindow(B::CreateWindowError),
 }
-impl<B: SkiaGraphicsEnv> Debug for BackendError<B> {
+impl<B: SkiaGraphicsBackend> Debug for BackendError<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Create(arg0) => f.debug_tuple("Create").field(arg0).finish(),

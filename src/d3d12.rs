@@ -38,7 +38,7 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender};
+use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
 
 pub struct D3d12WindowManager<State = ()> {
     env: D3d12Env,
@@ -290,7 +290,7 @@ impl D3d12Env {
             .perform_deferred_cleanup(Default::default(), None);
     }
 }
-impl SkiaGraphicsEnv for D3d12Env {
+impl SkiaGraphicsBackend for D3d12Env {
     type CreateError = windows::core::Error;
     type CreateWindowError = CreateD3d12WindowError;
 

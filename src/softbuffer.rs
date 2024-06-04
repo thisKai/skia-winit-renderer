@@ -13,7 +13,7 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender};
+use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
 
 pub struct SoftBufferWindowManager {
     env: SoftBufferEnv,
@@ -109,7 +109,7 @@ impl SoftBufferEnv {
         Ok(unsafe { SoftBufferSurface::from_raw(&self.context, raw_window_handle)? })
     }
 }
-impl SkiaGraphicsEnv for SoftBufferEnv {
+impl SkiaGraphicsBackend for SoftBufferEnv {
     type CreateError = SoftBufferError;
     type CreateWindowError = CreateWindowError;
 

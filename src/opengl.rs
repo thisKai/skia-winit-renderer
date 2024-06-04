@@ -22,7 +22,7 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender};
+use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
 
 pub struct GlWindowManager {
     env: Option<GlEnv>,
@@ -92,7 +92,7 @@ impl GlWindowManager {
 pub struct OpenGlEnv {
     state: Option<GlEnv>,
 }
-impl SkiaGraphicsEnv for OpenGlEnv {
+impl SkiaGraphicsBackend for OpenGlEnv {
     type CreateError = Infallible;
     type CreateWindowError = Box<dyn Error>;
 
