@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use provide_any::provide_any::request_mut;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
 use windows::{
@@ -27,7 +28,10 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::d3d12::{D3d12Env, SkiaD3d12SwapChain};
+use crate::{
+    d3d12::{D3d12Env, SkiaD3d12SwapChain},
+    generic::{Env, RenderWindow, SkiaGraphicsEnv, SkiaRender},
+};
 
 pub struct WindowsUiCompositionWindowManager<State = ()> {
     env: WindowsUiCompositionEnv,
@@ -44,7 +48,7 @@ impl WindowsUiCompositionWindowManager {
         &mut self,
         elwt: &EventLoopWindowTarget<UserEvent>,
         builder: WindowBuilder,
-    ) -> Result<WindowId, CreateDCompWindowError> {
+    ) -> Result<WindowId, CreateWindowError> {
         self.create_window_with_state(elwt, builder, ())
     }
     pub fn draw(
@@ -61,7 +65,7 @@ impl<State> WindowsUiCompositionWindowManager<State> {
         elwt: &EventLoopWindowTarget<UserEvent>,
         builder: WindowBuilder,
         state: State,
-    ) -> Result<WindowId, CreateDCompWindowError> {
+    ) -> Result<WindowId, CreateWindowError> {
         let window =
             self.create_window_object(elwt, builder.with_no_redirection_bitmap(true), state)?;
         let window_id = window.winit_window.id();
@@ -115,41 +119,70 @@ impl<State> WindowsUiCompositionWindowManager<State> {
         elwt: &EventLoopWindowTarget<UserEvent>,
         builder: WindowBuilder,
         state: State,
-    ) -> Result<WindowsUiCompositionCompWindow<State>, CreateDCompWindowError> {
+    ) -> Result<WindowsUiCompositionCompWindow<State>, CreateWindowError> {
         let window = builder
             .build(elwt)
-            .map_err(CreateDCompWindowError::BuildWindow)?;
+            .map_err(CreateWindowError::BuildWindow)?;
 
         let size = window.inner_size();
         let swap_chain = self
             .env
             .d3d12
             .create_composition_swap_chain(size.width, size.height)
-            .map_err(CreateDCompWindowError::CreateTarget)?;
+            .map_err(CreateWindowError::CreateTarget)?;
 
         WindowsUiCompositionCompWindow::new(window, swap_chain, state)
-            .map_err(CreateDCompWindowError::CreateTarget)
+            .map_err(CreateWindowError::CreateTarget)
     }
 }
 
 #[derive(Debug)]
-pub enum CreateDCompWindowError {
+pub enum CreateWindowError {
     BuildWindow(OsError),
     CreateTarget(windows::core::Error),
 }
 
-struct WindowsUiCompositionEnv {
+pub struct WindowsUiCompositionEnv {
     _dispatcher_queue_controller: DispatcherQueueController,
     d3d12: D3d12Env,
 }
 impl WindowsUiCompositionEnv {
-    pub fn new() -> windows::core::Result<Self> {
+    pub(crate) fn new() -> windows::core::Result<Self> {
         Ok(Self {
             _dispatcher_queue_controller: create_dispatcher_queue_controller_for_current_thread()?,
             d3d12: D3d12Env::new()?,
         })
     }
 }
+impl SkiaGraphicsEnv for WindowsUiCompositionEnv {
+    type Error = CreateWindowError;
+
+    fn create<D: raw_window_handle::HasRawDisplayHandle>(display: &D) -> Self {
+        Self::new().unwrap()
+    }
+    fn create_window<WinitUserEvent>(
+        &mut self,
+        elwt: &EventLoopWindowTarget<WinitUserEvent>,
+        builder: WindowBuilder,
+    ) -> Result<crate::generic::RenderWindow, Self::Error> {
+        let window = builder
+            .build(elwt)
+            .map_err(CreateWindowError::BuildWindow)?;
+
+        let size = window.inner_size();
+        let swap_chain = self
+            .d3d12
+            .create_composition_swap_chain(size.width, size.height)
+            .map_err(CreateWindowError::CreateTarget)?;
+
+        Ok(RenderWindow::new(
+            WindowsUiCompositionRenderer::new(&window, swap_chain)
+                .map_err(CreateWindowError::CreateTarget)?,
+            window,
+        ))
+    }
+}
+
 pub struct WindowsUiCompositionCompWindow<State> {
     state: State,
     compositor: Compositor,
@@ -238,6 +271,66 @@ impl<State> WindowsUiCompositionCompWindow<State> {
             .ok()
             .unwrap();
         Ok(())
+    }
+}
+pub struct WindowsUiCompositionRenderer {
+    compositor: Compositor,
+    desktop_window_target: DesktopWindowTarget,
+    swap_chain: SkiaD3d12SwapChain,
+    visual: SpriteVisual,
+    brush: CompositionSurfaceBrush,
+}
+impl WindowsUiCompositionRenderer {
+    fn new(winit_window: &Window, swap_chain: SkiaD3d12SwapChain) -> windows::core::Result<Self> {
+        let hwnd = match winit_window.raw_window_handle() {
+            RawWindowHandle::Win32(window_handle) => HWND(window_handle.hwnd as _),
+            _ => panic!("not win32"),
+        };
+        let compositor = Compositor::new()?;
+        let compositor_desktop_interop: ICompositorDesktopInterop = compositor.cast()?;
+        let desktop_window_target =
+            unsafe { compositor_desktop_interop.CreateDesktopWindowTarget(hwnd, true) }?;
+
+        let compositor_interop: ICompositorInterop = compositor.cast()?;
+
+        let surface = unsafe {
+            compositor_interop.CreateCompositionSurfaceForSwapChain(&swap_chain.swap_chain)
+        }?;
+
+        let brush = compositor.CreateSurfaceBrushWithSurface(&surface)?;
+        brush.SetStretch(windows::UI::Composition::CompositionStretch::Fill)?;
+
+        let visual = compositor.CreateSpriteVisual()?;
+        visual.SetRelativeSizeAdjustment(Vector2 { X: 1.0, Y: 1.0 })?;
+        visual.SetBrush(&brush)?;
+        desktop_window_target.SetRoot(&visual)?;
+
+        Ok(Self {
+            compositor,
+            desktop_window_target,
+            swap_chain,
+            brush,
+            visual,
+        })
+    }
+}
+impl SkiaRender for WindowsUiCompositionRenderer {
+    fn prepare_and_get_surface(&mut self, env: &mut Env) -> &mut skia_safe::Surface {
+        self.swap_chain.prepare_and_get_surface(env)
+    }
+
+    fn present(&mut self, env: &mut Env) {
+        self.swap_chain.present(env)
+    }
+    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
+        if size.width == 0 || size.height == 0 {
+            return;
+        }
+        let env = request_mut::<WindowsUiCompositionEnv>(env).unwrap();
+
+        self.swap_chain
+            .resize(&mut env.d3d12, size.width, size.height)
+            .unwrap();
     }
 }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use provide_any::provide_any::request_mut;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::{
     gpu::{
@@ -36,6 +37,8 @@ use winit::{
     event_loop::EventLoopWindowTarget,
     window::{Window, WindowBuilder, WindowId},
 };
+
+use crate::generic::{Env, RenderWindow, SkiaGraphicsEnv, SkiaRender};
 
 pub struct D3d12WindowManager<State = ()> {
     env: D3d12Env,
@@ -123,7 +126,7 @@ impl<State> D3d12WindowManager<State> {
     }
 }
 
-pub(crate) struct D3d12Env {
+pub struct D3d12Env {
     factory: IDXGIFactory4,
     backend_context: BackendContext,
     direct_context: DirectContext,
@@ -161,7 +164,7 @@ impl D3d12Env {
             .map_err(CreateD3d12WindowError::BuildWindow)?;
 
         let swap_chain = self
-            .create_window_surface(&window)
+            .create_window_swap_chain(&window)
             .map_err(CreateD3d12WindowError::CreateSurface)?;
 
         Ok(SkiaD3d12Window {
@@ -170,7 +173,7 @@ impl D3d12Env {
             state,
         })
     }
-    fn create_window_surface(
+    fn create_window_swap_chain(
         &mut self,
         window: &Window,
     ) -> windows::core::Result<SkiaD3d12SwapChain> {
@@ -287,6 +290,28 @@ impl D3d12Env {
             .perform_deferred_cleanup(Default::default(), None);
     }
 }
+impl SkiaGraphicsEnv for D3d12Env {
+    type Error = CreateD3d12WindowError;
+
+    fn create<D: raw_window_handle::HasRawDisplayHandle>(display: &D) -> Self {
+        Self::new().unwrap()
+    }
+    fn create_window<WinitUserEvent>(
+        &mut self,
+        elwt: &EventLoopWindowTarget<WinitUserEvent>,
+        builder: WindowBuilder,
+    ) -> Result<crate::generic::RenderWindow, Self::Error> {
+        let window = builder
+            .build(elwt)
+            .map_err(CreateD3d12WindowError::BuildWindow)?;
+
+        let render = self
+            .create_window_swap_chain(&window)
+            .map_err(CreateD3d12WindowError::CreateSurface)?;
+
+        Ok(RenderWindow::new(render, window))
+    }
+}
 
 #[derive(Debug)]
 pub enum CreateD3d12WindowError {
@@ -360,6 +385,26 @@ impl SkiaD3d12SwapChain {
 
         env.direct_context.flush_and_submit_surface(surface, None);
         unsafe { self.swap_chain.Present(1, 0) }
+    }
+    fn get_surface(&mut self) -> &mut Surface {
+        let index = unsafe { self.swap_chain.GetCurrentBackBufferIndex() };
+        &mut self.surfaces.as_mut().unwrap()[index as usize].0
+    }
+}
+impl SkiaRender for SkiaD3d12SwapChain {
+    fn prepare_and_get_surface(&mut self, env: &mut Env) -> &mut Surface {
+        self.get_surface()
+    }
+
+    fn present(&mut self, env: &mut Env) {
+        let surface = self.get_surface();
+        let env = request_mut::<D3d12Env>(env).unwrap();
+        env.direct_context.flush_and_submit_surface(surface, None);
+        unsafe { self.swap_chain.Present(1, 0) }.ok().unwrap()
+    }
+    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, window: &Window) {
+        let env = request_mut::<D3d12Env>(env).unwrap();
+        self.resize(env, size.width, size.height).unwrap()
     }
 }
 

@@ -1,6 +1,7 @@
 mod app;
 pub mod d3d12;
 pub mod dcomp;
+pub mod generic;
 mod gl;
 mod manager;
 pub mod opengl;

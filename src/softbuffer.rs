@@ -12,6 +12,8 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
+use crate::generic::{Env, RenderWindow, SkiaGraphicsEnv, SkiaRender};
+
 pub struct SoftBufferWindowManager {
     env: SoftBufferEnv,
     windows: HashMap<WindowId, SoftBufferWindow>,
@@ -90,11 +92,11 @@ pub enum CreateWindowError {
     SoftBuffer(SoftBufferError),
 }
 
-struct SoftBufferEnv {
+pub struct SoftBufferEnv {
     context: Context,
 }
 impl SoftBufferEnv {
-    fn new(raw_display_handle: RawDisplayHandle) -> Result<Self, SoftBufferError> {
+    pub(crate) fn new(raw_display_handle: RawDisplayHandle) -> Result<Self, SoftBufferError> {
         Ok(Self {
             context: unsafe { Context::from_raw(raw_display_handle) }?,
         })
@@ -104,6 +106,37 @@ impl SoftBufferEnv {
         raw_window_handle: RawWindowHandle,
     ) -> Result<SoftBufferSurface, SoftBufferError> {
         Ok(unsafe { SoftBufferSurface::from_raw(&self.context, raw_window_handle)? })
+    }
+}
+impl SkiaGraphicsEnv for SoftBufferEnv {
+    type Error = CreateWindowError;
+
+    fn create<D: HasRawDisplayHandle>(display: &D) -> Self {
+        Self::new(display.raw_display_handle()).unwrap()
+    }
+    fn create_window<WinitUserEvent>(
+        &mut self,
+        elwt: &EventLoopWindowTarget<WinitUserEvent>,
+        builder: WindowBuilder,
+    ) -> Result<crate::generic::RenderWindow, Self::Error> {
+        let window = builder
+            .build(elwt)
+            .map_err(CreateWindowError::CreateWindow)?;
+        let size: (i32, i32) = window.inner_size().into();
+
+        let softbuffer_surface = self
+            .create_surface(window.raw_window_handle())
+            .map_err(CreateWindowError::SoftBuffer)?;
+
+        let skia_surface = skia_safe::surfaces::raster_n32_premul(size).unwrap();
+
+        Ok(RenderWindow::new(
+            SkiaSoftBufferRenderer {
+                skia_surface,
+                softbuffer_surface,
+            },
+            window,
+        ))
     }
 }
 
@@ -133,6 +166,39 @@ impl SoftBufferWindow {
 
         let width = width.get() as i32;
         let height = height.get() as i32;
+        self.skia_surface = skia_safe::surfaces::raster_n32_premul((width, height)).unwrap();
+    }
+}
+
+pub struct SkiaSoftBufferRenderer {
+    skia_surface: Surface,
+    softbuffer_surface: SoftBufferSurface,
+}
+impl SkiaRender for SkiaSoftBufferRenderer {
+    fn prepare_and_get_surface(&mut self, _: &mut Env) -> &mut Surface {
+        &mut self.skia_surface
+    }
+
+    fn present(&mut self, _: &mut Env) {
+        let snapshot = self.skia_surface.image_snapshot();
+
+        let peek = snapshot.peek_pixels().unwrap();
+        let pixels: &[u32] = peek.pixels().unwrap();
+
+        let mut buffer = self.softbuffer_surface.buffer_mut().unwrap();
+        buffer.copy_from_slice(pixels);
+        buffer.present().unwrap();
+    }
+    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
+        self.softbuffer_surface
+            .resize(
+                NonZeroU32::new(size.width).unwrap(),
+                NonZeroU32::new(size.height).unwrap(),
+            )
+            .unwrap();
+
+        let width = size.width as i32;
+        let height = size.height as i32;
         self.skia_surface = skia_safe::surfaces::raster_n32_premul((width, height)).unwrap();
     }
 }
