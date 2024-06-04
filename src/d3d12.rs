@@ -359,6 +359,8 @@ impl SkiaD3d12SwapChain {
         width: u32,
         height: u32,
     ) -> windows::core::Result<()> {
+        env.cleanup();
+
         self.surfaces = None;
 
         unsafe {
@@ -402,7 +404,7 @@ impl SkiaRender for SkiaD3d12SwapChain {
         env.direct_context.flush_and_submit_surface(surface, None);
         unsafe { self.swap_chain.Present(1, 0) }.ok().unwrap()
     }
-    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, window: &Window) {
+    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
         let env = request_mut::<D3d12Env>(env).unwrap();
         self.resize(env, size.width, size.height).unwrap()
     }
