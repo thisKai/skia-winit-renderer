@@ -7,6 +7,7 @@ mod skia;
 mod software;
 mod window;
 mod window_manager;
+pub mod windows_ui_composition;
 
 pub use skia_safe;
 pub use {

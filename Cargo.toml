@@ -40,6 +40,8 @@ skia-safe = { version = "0.73", features = [
 [target.'cfg(windows)'.dependencies]
 skia-safe = { version = "0.73", features = ["textlayout", "gl", "d3d"] }
 windows = { version = "0.56", features = [
+    "System",
+    "Foundation_Numerics",
     "Win32",
     "Win32_Foundation",
     "Win32_Graphics",
@@ -51,6 +53,9 @@ windows = { version = "0.56", features = [
     "Win32_Graphics_Direct3D12",
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_DirectComposition",
+    "Win32_System_WinRT_Composition",
+    "UI_Composition",
+    "UI_Composition_Desktop",
 ] }
 
 [target.'cfg(target_os = "android")'.dependencies]

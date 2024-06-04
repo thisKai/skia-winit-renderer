@@ -19,8 +19,8 @@ use windows::{
             },
             Dxgi::{
                 Common::{
-                    DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_SAMPLE_DESC,
-                    DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN,
+                    DXGI_ALPHA_MODE_PREMULTIPLIED, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_UNKNOWN,
+                    DXGI_SAMPLE_DESC, DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN,
                 },
                 CreateDXGIFactory1, IDXGIAdapter1, IDXGIFactory4, IDXGISwapChain3,
                 DXGI_ADAPTER_FLAG, DXGI_ADAPTER_FLAG_NONE, DXGI_ADAPTER_FLAG_SOFTWARE,
@@ -234,6 +234,7 @@ impl D3d12Env {
                         Count: 1,
                         Quality: 0,
                     },
+                    AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
                     ..Default::default()
                 },
                 None,
