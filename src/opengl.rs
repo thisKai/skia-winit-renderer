@@ -10,7 +10,7 @@ use glutin::{
     surface::{GlSurface, SurfaceAttributesBuilder, SwapInterval, WindowSurface},
 };
 use glutin_winit::DisplayBuilder;
-use provide_any::provide_any::request_mut;
+use provide_any::provide_any::{request_mut, Provider};
 use raw_window_handle::HasRawWindowHandle;
 use skia_safe::{
     gpu::{self, backend_render_targets, gl::FramebufferInfo, DirectContext, SurfaceOrigin},
@@ -22,7 +22,7 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::generic::{Env, RenderWindow, SkiaGraphicsEnv, SkiaRender};
+use crate::generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender};
 
 pub struct GlWindowManager {
     env: Option<GlEnv>,
@@ -547,12 +547,12 @@ impl SkiaOpenGlRenderer {
     }
 }
 impl SkiaRender for SkiaOpenGlRenderer {
-    fn prepare_and_get_surface(&mut self, env: &mut Env) -> &mut Surface {
+    fn prepare_and_get_surface(&mut self, env: &mut dyn Provider) -> &mut Surface {
         self.make_current_if_needed().unwrap();
         &mut self.surface
     }
 
-    fn present(&mut self, env: &mut Env) {
+    fn present(&mut self, env: &mut dyn Provider) {
         let gl_context = self.gl_context.as_ref().unwrap();
         let env = request_mut::<OpenGlEnv>(env).unwrap();
         let env = env.state.as_mut().unwrap();
@@ -560,7 +560,7 @@ impl SkiaRender for SkiaOpenGlRenderer {
         self.direct_context.flush_and_submit();
         self.gl_surface.swap_buffers(gl_context).unwrap();
     }
-    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, window: &Window) {
+    fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, window: &Window) {
         let env = request_mut::<OpenGlEnv>(env).unwrap();
         let env = env.state.as_mut().unwrap();
 

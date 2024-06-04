@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use provide_any::provide_any::request_mut;
+use provide_any::provide_any::{request_mut, Provider};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::Canvas;
 use windows::{
@@ -30,7 +30,7 @@ use winit::{
 
 use crate::{
     d3d12::{D3d12Env, SkiaD3d12SwapChain},
-    generic::{Env, RenderWindow, SkiaGraphicsEnv, SkiaRender},
+    generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender},
 };
 
 pub struct WindowsUiCompositionWindowManager<State = ()> {
@@ -316,15 +316,15 @@ impl WindowsUiCompositionRenderer {
     }
 }
 impl SkiaRender for WindowsUiCompositionRenderer {
-    fn prepare_and_get_surface(&mut self, env: &mut Env) -> &mut skia_safe::Surface {
+    fn prepare_and_get_surface(&mut self, env: &mut dyn Provider) -> &mut skia_safe::Surface {
         self.swap_chain.prepare_and_get_surface(env)
     }
 
-    fn present(&mut self, env: &mut Env) {
+    fn present(&mut self, env: &mut dyn Provider) {
         let env = request_mut::<WindowsUiCompositionEnv>(env).unwrap();
         self.swap_chain.present(&mut env.d3d12);
     }
-    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
+    fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, _: &Window) {
         if size.width == 0 || size.height == 0 {
             return;
         }

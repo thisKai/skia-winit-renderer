@@ -1,5 +1,6 @@
 use std::{collections::HashMap, num::NonZeroU32};
 
+use provide_any::provide_any::Provider;
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -12,7 +13,7 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::generic::{Env, RenderWindow, SkiaGraphicsEnv, SkiaRender};
+use crate::generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender};
 
 pub struct SoftBufferWindowManager {
     env: SoftBufferEnv,
@@ -175,11 +176,11 @@ pub struct SkiaSoftBufferRenderer {
     softbuffer_surface: SoftBufferSurface,
 }
 impl SkiaRender for SkiaSoftBufferRenderer {
-    fn prepare_and_get_surface(&mut self, _: &mut Env) -> &mut Surface {
+    fn prepare_and_get_surface(&mut self, _: &mut dyn Provider) -> &mut Surface {
         &mut self.skia_surface
     }
 
-    fn present(&mut self, _: &mut Env) {
+    fn present(&mut self, _: &mut dyn Provider) {
         let snapshot = self.skia_surface.image_snapshot();
 
         let peek = snapshot.peek_pixels().unwrap();
@@ -189,7 +190,7 @@ impl SkiaRender for SkiaSoftBufferRenderer {
         buffer.copy_from_slice(pixels);
         buffer.present().unwrap();
     }
-    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
+    fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, _: &Window) {
         self.softbuffer_surface
             .resize(
                 NonZeroU32::new(size.width).unwrap(),

@@ -216,7 +216,7 @@ impl RenderWindow {
 }
 
 pub trait SkiaRender {
-    fn prepare_and_get_surface(&mut self, env: &mut Env) -> &mut Surface;
-    fn present(&mut self, env: &mut Env);
-    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, window: &Window);
+    fn prepare_and_get_surface(&mut self, env: &mut dyn Provider) -> &mut Surface;
+    fn present(&mut self, env: &mut dyn Provider);
+    fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, window: &Window);
 }

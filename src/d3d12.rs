@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use provide_any::provide_any::request_mut;
+use provide_any::provide_any::{request_mut, Provider};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_safe::{
     gpu::{
@@ -38,7 +38,7 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-use crate::generic::{Env, RenderWindow, SkiaGraphicsEnv, SkiaRender};
+use crate::generic::{RenderWindow, SkiaGraphicsEnv, SkiaRender};
 
 pub struct D3d12WindowManager<State = ()> {
     env: D3d12Env,
@@ -399,15 +399,15 @@ impl SkiaD3d12SwapChain {
     }
 }
 impl SkiaRender for SkiaD3d12SwapChain {
-    fn prepare_and_get_surface(&mut self, _: &mut Env) -> &mut Surface {
+    fn prepare_and_get_surface(&mut self, _: &mut dyn Provider) -> &mut Surface {
         self.get_surface()
     }
 
-    fn present(&mut self, env: &mut Env) {
+    fn present(&mut self, env: &mut dyn Provider) {
         let env = request_mut::<D3d12Env>(env).unwrap();
         self.present(env);
     }
-    fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
+    fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, _: &Window) {
         let env = request_mut::<D3d12Env>(env).unwrap();
         self.resize(env, size.width, size.height).unwrap()
     }
