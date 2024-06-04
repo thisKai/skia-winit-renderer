@@ -3,6 +3,7 @@ pub mod d3d12;
 pub mod dcomp;
 mod gl;
 mod manager;
+pub mod opengl;
 mod skia;
 mod software;
 mod window;

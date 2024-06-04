@@ -28,6 +28,7 @@ softbuffer = "0.3"
 glutin = "0.31"
 glutin-winit = "0.4"
 skia-safe = { version = "0.73", features = ["textlayout", "gl"] }
+gl = "0.14.0"
 
 [target.'cfg(unix)'.dependencies]
 skia-safe = { version = "0.73", features = [
