@@ -1,5 +1,5 @@
 use skia_safe::{colors, Paint};
-use skia_winit_renderer::{generic::WindowManager, opengl::OpenGlBackend};
+use skia_winit_renderer::generic::{DefaultBackend, WindowManager};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
@@ -9,7 +9,7 @@ use winit::{
 fn main() {
     let event_loop = EventLoopBuilder::new().build().unwrap();
 
-    let mut window_manager = WindowManager::<OpenGlBackend>::new(&event_loop).unwrap();
+    let mut window_manager = WindowManager::<DefaultBackend>::new(&event_loop).unwrap();
 
     event_loop
         .run(|event, elwt| match event {
@@ -21,7 +21,6 @@ fn main() {
             Event::WindowEvent { window_id, event } => match event {
                 WindowEvent::CloseRequested => {
                     window_manager.remove(&window_id);
-                    dbg!("remove");
                     elwt.exit();
                 }
                 WindowEvent::RedrawRequested => {

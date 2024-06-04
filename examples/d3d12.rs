@@ -9,13 +9,13 @@ use winit::{
 fn main() {
     let event_loop = EventLoopBuilder::new().build().unwrap();
 
-    let mut window_manager = WindowManager::new();
+    let mut window_manager = WindowManager::<D3d12Backend>::new(&event_loop).unwrap();
 
     event_loop
         .run(|event, elwt| match event {
             Event::Resumed => {
                 window_manager
-                    .create::<D3d12Backend, _>(elwt, WindowBuilder::new().with_transparent(true))
+                    .create(elwt, WindowBuilder::new().with_transparent(true))
                     .unwrap();
             }
             Event::WindowEvent { window_id, event } => match event {

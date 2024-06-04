@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use provide_any::provide_any::{request_mut, request_ref, Demand, Provider};
+use provide_any::provide_any::{Demand, Provider};
 use raw_window_handle::HasRawDisplayHandle;
 use skia_safe::{Canvas, Surface};
 use winit::{
@@ -15,55 +15,41 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct WindowManager<State = ()> {
-    env: AnyBackend,
+pub struct WindowManager<Backend = DefaultBackend, State = ()> {
+    env: Backend,
     windows: HashMap<WindowId, StatefulWindow<State>>,
 }
-impl WindowManager {
-    pub fn new() -> Self {
-        Self {
-            env: AnyBackend::default(),
-            windows: HashMap::new(),
-        }
+impl<Backend: Provider + SkiaGraphicsBackend + 'static> WindowManager<Backend> {
+    pub fn new<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Backend::CreateError> {
+        let b = Self::with_state::<D>(display);
+        dbg!(b.is_ok());
+        b
     }
-    pub fn create<Env, T>(
+    pub fn create<T>(
         &mut self,
         elwt: &EventLoopWindowTarget<T>,
         builder: WindowBuilder,
-    ) -> Result<WindowId, BackendError<Env>>
-    where
-        Env: SkiaGraphicsBackend + InitEnv + 'static,
-    {
-        self.create_with_state::<Env, _>(elwt, builder, ())
+    ) -> Result<WindowId, Backend::CreateWindowError> {
+        self.create_with_state(elwt, builder, ())
     }
     pub fn draw(&mut self, window_id: &WindowId, mut f: impl FnMut(&Canvas, &Window)) {
         self.draw_with_state(window_id, |canvas, window, _| f(canvas, window))
     }
 }
-impl<State> WindowManager<State> {
-    pub fn with_state() -> Self {
-        Self {
-            env: AnyBackend::default(),
+impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Backend, State> {
+    pub fn with_state<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Backend::CreateError> {
+        Ok(Self {
+            env: Backend::create::<D>(display)?,
             windows: HashMap::new(),
-        }
+        })
     }
-    pub fn create_with_state<Env, T>(
+    pub fn create_with_state<T>(
         &mut self,
         elwt: &EventLoopWindowTarget<T>,
         builder: WindowBuilder,
         state: State,
-    ) -> Result<WindowId, BackendError<Env>>
-    where
-        Env: SkiaGraphicsBackend + InitEnv + 'static,
-    {
-        self.create_env_if_absent::<Env, _>(elwt)
-            .map_err(BackendError::Create)?;
-
-        let env = request_mut::<Env>(&mut self.env).unwrap();
-
-        let render_window = env
-            .create_window(elwt, builder)
-            .map_err(BackendError::CreateWindow)?;
+    ) -> Result<WindowId, Backend::CreateWindowError> {
+        let render_window = self.env.create_window(elwt, builder)?;
         let id = render_window.window.id();
 
         self.windows.insert(
@@ -76,6 +62,35 @@ impl<State> WindowManager<State> {
 
         Ok(id)
     }
+    // pub fn create_with_state<Env, T>(
+    //     &mut self,
+    //     elwt: &EventLoopWindowTarget<T>,
+    //     builder: WindowBuilder,
+    //     state: State,
+    // ) -> Result<WindowId, BackendError<Env>>
+    // where
+    //     Env: SkiaGraphicsBackend + InitEnv + 'static,
+    // {
+    //     self.create_env_if_absent::<Env, _>(elwt)
+    //         .map_err(BackendError::Create)?;
+
+    //     let env = request_mut::<Env>(&mut self.env).unwrap();
+
+    //     let render_window = env
+    //         .create_window(elwt, builder)
+    //         .map_err(BackendError::CreateWindow)?;
+    //     let id = render_window.window.id();
+
+    //     self.windows.insert(
+    //         id,
+    //         StatefulWindow {
+    //             state,
+    //             render_window,
+    //         },
+    //     );
+
+    //     Ok(id)
+    // }
     pub fn remove(&mut self, window_id: &WindowId) {
         self.windows.remove(window_id);
     }
@@ -99,24 +114,96 @@ impl<State> WindowManager<State> {
             .render
             .resize(&mut self.env, size, &window.render_window.window);
     }
-    fn create_env_if_absent<Env, T>(
-        &mut self,
-        elwt: &EventLoopWindowTarget<T>,
-    ) -> Result<(), Env::CreateError>
-    where
-        Env: SkiaGraphicsBackend + InitEnv + 'static,
-    {
-        let exists = request_ref::<Env>(&self.env).is_some();
-        if !exists {
-            let env = Env::env(&mut self.env);
-            *env = Some(Env::create(elwt)?);
-        }
-        Ok(())
-    }
+    // fn create_env_if_absent<Env, T>(
+    //     &mut self,
+    //     elwt: &EventLoopWindowTarget<T>,
+    // ) -> Result<(), Env::CreateError>
+    // where
+    //     Env: SkiaGraphicsBackend + InitEnv + 'static,
+    // {
+    //     let exists = request_ref::<Env>(&self.env).is_some();
+    //     if !exists {
+    //         let env = Env::env(&mut self.env);
+    //         *env = Some(Env::create(elwt)?);
+    //     }
+    //     Ok(())
+    // }
 }
 
 pub enum CreateWindowError {
     Winit(winit::error::OsError),
+}
+
+pub enum DefaultBackend {
+    WindowsUiComposition(WindowsUiCompositionBackend),
+    D3d12(D3d12Backend),
+    OpenGl(OpenGlBackend),
+    SoftBuffer(SoftBufferBackend),
+}
+
+#[derive(Debug)]
+pub struct NoBackendsAvailable;
+impl SkiaGraphicsBackend for DefaultBackend {
+    type CreateError = NoBackendsAvailable;
+    type CreateWindowError = DefaultBackendCreateWindowError;
+
+    fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
+        WindowsUiCompositionBackend::create(display)
+            .map(Self::WindowsUiComposition)
+            .or_else(|_| D3d12Backend::create(display).map(Self::D3d12))
+            .or_else(|_| OpenGlBackend::create(display).map(Self::OpenGl))
+            .or_else(|_| SoftBufferBackend::create(display).map(Self::SoftBuffer))
+            .map_err(|_| NoBackendsAvailable)
+    }
+    fn create_window<WinitUserEvent>(
+        &mut self,
+        elwt: &EventLoopWindowTarget<WinitUserEvent>,
+        builder: WindowBuilder,
+    ) -> Result<RenderWindow, Self::CreateWindowError> {
+        match self {
+            Self::WindowsUiComposition(backend) => backend
+                .create_window(elwt, builder)
+                .map_err(DefaultBackendCreateWindowError::WindowsUiComposition),
+            Self::D3d12(backend) => backend
+                .create_window(elwt, builder)
+                .map_err(DefaultBackendCreateWindowError::D3d12),
+            Self::OpenGl(backend) => backend
+                .create_window(elwt, builder)
+                .map_err(DefaultBackendCreateWindowError::OpenGl),
+            Self::SoftBuffer(backend) => backend
+                .create_window(elwt, builder)
+                .map_err(DefaultBackendCreateWindowError::SoftBuffer),
+        }
+    }
+}
+#[derive(Debug)]
+pub enum DefaultBackendCreateWindowError {
+    WindowsUiComposition(<WindowsUiCompositionBackend as SkiaGraphicsBackend>::CreateWindowError),
+    D3d12(<D3d12Backend as SkiaGraphicsBackend>::CreateWindowError),
+    OpenGl(<OpenGlBackend as SkiaGraphicsBackend>::CreateWindowError),
+    SoftBuffer(<SoftBufferBackend as SkiaGraphicsBackend>::CreateWindowError),
+}
+impl Provider for DefaultBackend {
+    fn provide<'a>(&'a self, request: &mut Demand<'a>) {
+        match self {
+            Self::WindowsUiComposition(backend) => {
+                request.provide_ref::<WindowsUiCompositionBackend>(backend)
+            }
+            Self::D3d12(backend) => request.provide_ref::<D3d12Backend>(backend),
+            Self::OpenGl(backend) => request.provide_ref::<OpenGlBackend>(backend),
+            Self::SoftBuffer(backend) => request.provide_ref::<SoftBufferBackend>(backend),
+        };
+    }
+    fn provide_mut<'a>(&'a mut self, request: &mut Demand<'a>) {
+        match self {
+            Self::WindowsUiComposition(backend) => {
+                request.provide_mut::<WindowsUiCompositionBackend>(backend)
+            }
+            Self::D3d12(backend) => request.provide_mut::<D3d12Backend>(backend),
+            Self::OpenGl(backend) => request.provide_mut::<OpenGlBackend>(backend),
+            Self::SoftBuffer(backend) => request.provide_mut::<SoftBufferBackend>(backend),
+        };
+    }
 }
 
 #[derive(Default)]
@@ -254,7 +341,7 @@ impl RenderWindow {
             window,
         }
     }
-    fn draw(&mut self, env: &mut AnyBackend, mut f: impl FnMut(&Canvas, &Window)) {
+    fn draw(&mut self, env: &mut dyn Provider, mut f: impl FnMut(&Canvas, &Window)) {
         let surface = self.render.prepare_and_get_surface(env);
         let canvas = surface.canvas();
 
