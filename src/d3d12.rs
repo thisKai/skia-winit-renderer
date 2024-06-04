@@ -275,7 +275,7 @@ impl D3d12Backend {
             let surface = surfaces::wrap_backend_render_target(
                 &mut self.direct_context,
                 &backend_render_target,
-                SurfaceOrigin::BottomLeft,
+                SurfaceOrigin::TopLeft,
                 ColorType::RGBA8888,
                 None,
                 None,
