@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use provide_any::provide_any::{request_mut, request_ref, Demand, Provider};
 use raw_window_handle::HasRawDisplayHandle;
@@ -30,7 +30,7 @@ impl WindowManager {
         &mut self,
         elwt: &EventLoopWindowTarget<T>,
         builder: WindowBuilder,
-    ) -> Result<WindowId, Env::Error>
+    ) -> Result<WindowId, BackendError<Env>>
     where
         Env: SkiaGraphicsEnv + InitEnv + 'static,
     {
@@ -52,15 +52,18 @@ impl<State> WindowManager<State> {
         elwt: &EventLoopWindowTarget<T>,
         builder: WindowBuilder,
         state: State,
-    ) -> Result<WindowId, Env::Error>
+    ) -> Result<WindowId, BackendError<Env>>
     where
         Env: SkiaGraphicsEnv + InitEnv + 'static,
     {
-        self.create_env_if_absent::<Env, _>(elwt);
+        self.create_env_if_absent::<Env, _>(elwt)
+            .map_err(BackendError::Create)?;
 
         let env = request_mut::<Env>(&mut self.env).unwrap();
 
-        let render_window = env.create_window(elwt, builder)?;
+        let render_window = env
+            .create_window(elwt, builder)
+            .map_err(BackendError::CreateWindow)?;
         let id = render_window.window.id();
 
         self.windows.insert(
@@ -96,15 +99,19 @@ impl<State> WindowManager<State> {
             .render
             .resize(&mut self.env, size, &window.render_window.window);
     }
-    fn create_env_if_absent<Env, T>(&mut self, elwt: &EventLoopWindowTarget<T>)
+    fn create_env_if_absent<Env, T>(
+        &mut self,
+        elwt: &EventLoopWindowTarget<T>,
+    ) -> Result<(), Env::CreateError>
     where
         Env: SkiaGraphicsEnv + InitEnv + 'static,
     {
         let exists = request_ref::<Env>(&self.env).is_some();
         if !exists {
             let env = Env::env(&mut self.env);
-            *env = Some(Env::create(elwt));
+            *env = Some(Env::create(elwt)?);
         }
+        Ok(())
     }
 }
 
@@ -184,10 +191,6 @@ impl Provider for D3d12Env {
 
 pub trait InitEnv: SkiaGraphicsEnv + Sized {
     fn env(env: &mut Env) -> &mut Option<Self>;
-    fn init_env<D: HasRawDisplayHandle>(env: &mut Env, display: &D) {
-        let env = Self::env(env);
-        *env = Some(Self::create(display));
-    }
 }
 impl InitEnv for SoftBufferEnv {
     fn env(env: &mut Env) -> &mut Option<Self> {
@@ -210,15 +213,29 @@ impl InitEnv for WindowsUiCompositionEnv {
     }
 }
 
-pub trait SkiaGraphicsEnv {
-    type Error;
+pub trait SkiaGraphicsEnv: Sized {
+    type CreateError: Debug;
+    type CreateWindowError: Debug;
 
-    fn create<D: HasRawDisplayHandle>(display: &D) -> Self;
+    fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError>;
     fn create_window<WinitUserEvent>(
         &mut self,
         elwt: &EventLoopWindowTarget<WinitUserEvent>,
         builder: WindowBuilder,
-    ) -> Result<RenderWindow, Self::Error>;
+    ) -> Result<RenderWindow, Self::CreateWindowError>;
+}
+
+pub enum BackendError<B: SkiaGraphicsEnv> {
+    Create(B::CreateError),
+    CreateWindow(B::CreateWindowError),
+}
+impl<B: SkiaGraphicsEnv> Debug for BackendError<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Create(arg0) => f.debug_tuple("Create").field(arg0).finish(),
+            Self::CreateWindow(arg0) => f.debug_tuple("CreateWindow").field(arg0).finish(),
+        }
+    }
 }
 
 pub struct StatefulWindow<State = ()> {

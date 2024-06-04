@@ -291,16 +291,17 @@ impl D3d12Env {
     }
 }
 impl SkiaGraphicsEnv for D3d12Env {
-    type Error = CreateD3d12WindowError;
+    type CreateError = windows::core::Error;
+    type CreateWindowError = CreateD3d12WindowError;
 
-    fn create<D: raw_window_handle::HasRawDisplayHandle>(display: &D) -> Self {
-        Self::new().unwrap()
+    fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
+        Self::new()
     }
     fn create_window<WinitUserEvent>(
         &mut self,
         elwt: &EventLoopWindowTarget<WinitUserEvent>,
         builder: WindowBuilder,
-    ) -> Result<crate::generic::RenderWindow, Self::Error> {
+    ) -> Result<crate::generic::RenderWindow, Self::CreateWindowError> {
         let window = builder
             .build(elwt)
             .map_err(CreateD3d12WindowError::BuildWindow)?;

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, ffi::CString, num::NonZeroU32};
+use std::{collections::HashMap, convert::Infallible, error::Error, ffi::CString, num::NonZeroU32};
 
 use glutin::{
     config::{Config, ConfigTemplateBuilder, GlConfig},
@@ -93,16 +93,17 @@ pub struct OpenGlEnv {
     state: Option<GlEnv>,
 }
 impl SkiaGraphicsEnv for OpenGlEnv {
-    type Error = Box<dyn Error>;
+    type CreateError = Infallible;
+    type CreateWindowError = Box<dyn Error>;
 
-    fn create<D: raw_window_handle::HasRawDisplayHandle>(display: &D) -> Self {
-        Self::default()
+    fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
+        Ok(Self::default())
     }
     fn create_window<WinitUserEvent>(
         &mut self,
         elwt: &EventLoopWindowTarget<WinitUserEvent>,
         builder: WindowBuilder,
-    ) -> Result<crate::generic::RenderWindow, Self::Error> {
+    ) -> Result<crate::generic::RenderWindow, Self::CreateWindowError> {
         match &mut self.state {
             Some(env) => todo!(),
             env @ None => {

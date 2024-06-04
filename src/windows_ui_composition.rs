@@ -155,16 +155,17 @@ impl WindowsUiCompositionEnv {
     }
 }
 impl SkiaGraphicsEnv for WindowsUiCompositionEnv {
-    type Error = CreateWindowError;
+    type CreateError = windows::core::Error;
+    type CreateWindowError = CreateWindowError;
 
-    fn create<D: raw_window_handle::HasRawDisplayHandle>(display: &D) -> Self {
-        Self::new().unwrap()
+    fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
+        Self::new()
     }
     fn create_window<WinitUserEvent>(
         &mut self,
         elwt: &EventLoopWindowTarget<WinitUserEvent>,
         builder: WindowBuilder,
-    ) -> Result<crate::generic::RenderWindow, Self::Error> {
+    ) -> Result<crate::generic::RenderWindow, Self::CreateWindowError> {
         let window = builder
             .with_no_redirection_bitmap(true)
             .build(elwt)

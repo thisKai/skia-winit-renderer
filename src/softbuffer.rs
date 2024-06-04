@@ -110,16 +110,17 @@ impl SoftBufferEnv {
     }
 }
 impl SkiaGraphicsEnv for SoftBufferEnv {
-    type Error = CreateWindowError;
+    type CreateError = SoftBufferError;
+    type CreateWindowError = CreateWindowError;
 
-    fn create<D: HasRawDisplayHandle>(display: &D) -> Self {
-        Self::new(display.raw_display_handle()).unwrap()
+    fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
+        Self::new(display.raw_display_handle())
     }
     fn create_window<WinitUserEvent>(
         &mut self,
         elwt: &EventLoopWindowTarget<WinitUserEvent>,
         builder: WindowBuilder,
-    ) -> Result<crate::generic::RenderWindow, Self::Error> {
+    ) -> Result<crate::generic::RenderWindow, Self::CreateWindowError> {
         let window = builder
             .build(elwt)
             .map_err(CreateWindowError::CreateWindow)?;
