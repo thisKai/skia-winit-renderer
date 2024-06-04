@@ -15,9 +15,9 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct WindowManager {
+pub struct WindowManager<State = ()> {
     env: Env,
-    windows: HashMap<WindowId, RenderWindow>,
+    windows: HashMap<WindowId, StatefulWindow<State>>,
 }
 impl WindowManager {
     pub fn new() -> Self {
@@ -34,28 +34,67 @@ impl WindowManager {
     where
         Env: SkiaGraphicsEnv + InitEnv + 'static,
     {
+        self.create_with_state::<Env, _>(elwt, builder, ())
+    }
+    pub fn draw(&mut self, window_id: &WindowId, mut f: impl FnMut(&Canvas, &Window)) {
+        self.draw_with_state(window_id, |canvas, window, _| f(canvas, window))
+    }
+}
+impl<State> WindowManager<State> {
+    pub fn with_state() -> Self {
+        Self {
+            env: Env::default(),
+            windows: HashMap::new(),
+        }
+    }
+    pub fn create_with_state<Env, T>(
+        &mut self,
+        elwt: &EventLoopWindowTarget<T>,
+        builder: WindowBuilder,
+        state: State,
+    ) -> Result<WindowId, Env::Error>
+    where
+        Env: SkiaGraphicsEnv + InitEnv + 'static,
+    {
         self.create_env_if_absent::<Env, _>(elwt);
 
         let env = request_mut::<Env>(&mut self.env).unwrap();
 
-        let window = env.create_window(elwt, builder)?;
-        let id = window.window.id();
+        let render_window = env.create_window(elwt, builder)?;
+        let id = render_window.window.id();
 
-        self.windows.insert(id, window);
+        self.windows.insert(
+            id,
+            StatefulWindow {
+                state,
+                render_window,
+            },
+        );
 
         Ok(id)
     }
     pub fn remove(&mut self, window_id: &WindowId) {
         self.windows.remove(window_id);
     }
-    pub fn draw(&mut self, window_id: &WindowId, f: impl FnMut(&Canvas, &Window)) {
+    pub fn draw_with_state(
+        &mut self,
+        window_id: &WindowId,
+        mut f: impl FnMut(&Canvas, &Window, &State),
+    ) {
         let window = self.windows.get_mut(window_id).unwrap();
-        window.draw(&mut self.env, f);
+        window
+            .render_window
+            .draw(&mut self.env, |canvas, winit_window| {
+                f(canvas, winit_window, &window.state)
+            });
     }
     pub fn resize(&mut self, window_id: &WindowId, size: PhysicalSize<u32>) {
         let window = self.windows.get_mut(window_id).unwrap();
 
-        window.render.resize(&mut self.env, size, &window.window);
+        window
+            .render_window
+            .render
+            .resize(&mut self.env, size, &window.render_window.window);
     }
     fn create_env_if_absent<Env, T>(&mut self, elwt: &EventLoopWindowTarget<T>)
     where
@@ -148,6 +187,11 @@ pub trait SkiaGraphicsEnv {
         elwt: &EventLoopWindowTarget<WinitUserEvent>,
         builder: WindowBuilder,
     ) -> Result<RenderWindow, Self::Error>;
+}
+
+pub struct StatefulWindow<State = ()> {
+    state: State,
+    render_window: RenderWindow,
 }
 
 pub struct RenderWindow {
