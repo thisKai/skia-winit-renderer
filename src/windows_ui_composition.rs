@@ -166,6 +166,7 @@ impl SkiaGraphicsEnv for WindowsUiCompositionEnv {
         builder: WindowBuilder,
     ) -> Result<crate::generic::RenderWindow, Self::Error> {
         let window = builder
+            .with_no_redirection_bitmap(true)
             .build(elwt)
             .map_err(CreateWindowError::BuildWindow)?;
 
@@ -320,7 +321,8 @@ impl SkiaRender for WindowsUiCompositionRenderer {
     }
 
     fn present(&mut self, env: &mut Env) {
-        self.swap_chain.present(env)
+        let env = request_mut::<WindowsUiCompositionEnv>(env).unwrap();
+        self.swap_chain.present(&mut env.d3d12);
     }
     fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
         if size.width == 0 || size.height == 0 {

@@ -388,21 +388,24 @@ impl SkiaD3d12SwapChain {
         env.direct_context.flush_and_submit_surface(surface, None);
         unsafe { self.swap_chain.Present(1, 0) }
     }
+    pub(crate) fn present(&mut self, env: &mut D3d12Env) {
+        let surface = self.get_surface();
+        env.direct_context.flush_and_submit_surface(surface, None);
+        unsafe { self.swap_chain.Present(1, 0) }.ok().unwrap()
+    }
     fn get_surface(&mut self) -> &mut Surface {
         let index = unsafe { self.swap_chain.GetCurrentBackBufferIndex() };
         &mut self.surfaces.as_mut().unwrap()[index as usize].0
     }
 }
 impl SkiaRender for SkiaD3d12SwapChain {
-    fn prepare_and_get_surface(&mut self, env: &mut Env) -> &mut Surface {
+    fn prepare_and_get_surface(&mut self, _: &mut Env) -> &mut Surface {
         self.get_surface()
     }
 
     fn present(&mut self, env: &mut Env) {
-        let surface = self.get_surface();
         let env = request_mut::<D3d12Env>(env).unwrap();
-        env.direct_context.flush_and_submit_surface(surface, None);
-        unsafe { self.swap_chain.Present(1, 0) }.ok().unwrap()
+        self.present(env);
     }
     fn resize(&mut self, env: &mut Env, size: PhysicalSize<u32>, _: &Window) {
         let env = request_mut::<D3d12Env>(env).unwrap();

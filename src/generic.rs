@@ -45,8 +45,8 @@ impl WindowManager {
 
         Ok(id)
     }
-    pub fn remove(&mut self, window_id: &WindowId) -> Option<RenderWindow> {
-        self.windows.remove(window_id)
+    pub fn remove(&mut self, window_id: &WindowId) {
+        self.windows.remove(window_id);
     }
     pub fn draw(&mut self, window_id: &WindowId, f: impl FnMut(&Canvas, &Window)) {
         let window = self.windows.get_mut(window_id).unwrap();
