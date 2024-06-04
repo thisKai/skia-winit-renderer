@@ -1,4 +1,3 @@
-mod app;
 pub mod d3d12;
 pub mod dcomp;
 pub mod generic;
@@ -9,12 +8,10 @@ mod skia;
 pub mod softbuffer;
 mod software;
 mod window;
-mod window_manager;
 pub mod windows_ui_composition;
 
 pub use skia_safe;
 pub use {
-    app::{run, App, AppCx},
     manager::{ManagedWindow, WindowManager},
     window::{Window, WindowCx},
 };
