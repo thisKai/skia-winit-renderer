@@ -91,6 +91,14 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
 
     //     Ok(id)
     // }
+    pub fn get(&self, window_id: &WindowId) -> Option<&StatefulWindow<State>> {
+        self.windows.get(window_id)
+        // .map(|window| &window.render_window.window)
+    }
+    pub fn get_mut(&mut self, window_id: &WindowId) -> Option<&mut StatefulWindow<State>> {
+        self.windows.get_mut(window_id)
+        // .map(|window| &mut window.render_window.window)
+    }
     pub fn remove(&mut self, window_id: &WindowId) {
         self.windows.remove(window_id);
     }
@@ -128,6 +136,14 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
     //     }
     //     Ok(())
     // }
+    pub fn iter(&self) -> impl Iterator<Item = &StatefulWindow<State>> {
+        self.windows.values()
+    }
+    pub fn close(&mut self, id: &WindowId) -> bool {
+        self.windows.remove(&id);
+        dbg!("close");
+        self.windows.is_empty()
+    }
 }
 
 pub enum CreateWindowError {
@@ -328,6 +344,14 @@ impl<B: SkiaGraphicsBackend> Debug for BackendError<B> {
 pub struct StatefulWindow<State = ()> {
     state: State,
     render_window: RenderWindow,
+}
+impl<State> StatefulWindow<State> {
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+    pub fn winit_window(&self) -> &Window {
+        &self.render_window.window
+    }
 }
 
 pub struct RenderWindow {
