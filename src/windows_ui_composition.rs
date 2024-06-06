@@ -97,7 +97,7 @@ impl SkiaRender for WindowsUiCompositionRenderer {
         {
             self.brush.SetSurface(&new_composition_surface).unwrap();
         }
-        self.swap_chain.unwrap_surface(&mut env.0)
+        self.swap_chain.unwrap_surface_mut()
     }
 
     fn present(&mut self, env: &mut dyn Provider) {
