@@ -37,6 +37,9 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static> WindowManager<Backend> {
     }
 }
 impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Backend, State> {
+    pub fn composited(&self) -> bool {
+        self.env.composited()
+    }
     pub fn with_state<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Backend::CreateError> {
         Ok(Self {
             env: Backend::create::<D>(display)?,
@@ -162,6 +165,15 @@ pub struct NoBackendsAvailable;
 impl SkiaGraphicsBackend for DefaultBackend {
     type CreateError = NoBackendsAvailable;
     type CreateWindowError = DefaultBackendCreateWindowError;
+
+    fn composited(&self) -> bool {
+        dbg!(match self {
+            Self::WindowsUiComposition(backend) => backend.composited(),
+            Self::D3d12(backend) => backend.composited(),
+            Self::OpenGl(backend) => backend.composited(),
+            Self::SoftBuffer(backend) => backend.composited(),
+        })
+    }
 
     fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
         WindowsUiCompositionBackend::create(display)
@@ -316,9 +328,13 @@ impl InitEnv for WindowsUiCompositionBackend {
     }
 }
 
-pub trait SkiaGraphicsBackend: Sized {
+pub trait SkiaGraphicsBackend: Provider + Sized {
     type CreateError: Debug;
     type CreateWindowError: Debug;
+
+    fn composited(&self) -> bool {
+        false
+    }
 
     fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError>;
     fn create_window<WinitUserEvent>(
