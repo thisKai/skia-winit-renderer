@@ -167,21 +167,33 @@ impl SkiaGraphicsBackend for DefaultBackend {
     type CreateWindowError = DefaultBackendCreateWindowError;
 
     fn composited(&self) -> bool {
-        dbg!(match self {
+        match self {
             Self::WindowsUiComposition(backend) => backend.composited(),
             Self::D3d12(backend) => backend.composited(),
             Self::OpenGl(backend) => backend.composited(),
             Self::SoftBuffer(backend) => backend.composited(),
-        })
+        }
     }
 
     fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
         WindowsUiCompositionBackend::create(display)
             .map(Self::WindowsUiComposition)
-            .or_else(|_| D3d12Backend::create(display).map(Self::D3d12))
-            .or_else(|_| OpenGlBackend::create(display).map(Self::OpenGl))
-            .or_else(|_| SoftBufferBackend::create(display).map(Self::SoftBuffer))
-            .map_err(|_| NoBackendsAvailable)
+            .or_else(|err| {
+                eprintln!("Windows.UI.Composition error: {err}.\nTrying D3D12.");
+                D3d12Backend::create(display).map(Self::D3d12)
+            })
+            .or_else(|err| {
+                eprintln!("D3D12 error: {err}.\nTrying OpenGL.");
+                OpenGlBackend::create(display).map(Self::OpenGl)
+            })
+            .or_else(|err| {
+                eprintln!("OpenGL error {err}.\nTrying software rendering.");
+                SoftBufferBackend::create(display).map(Self::SoftBuffer)
+            })
+            .map_err(|err| {
+                eprintln!("Software rendering error: {err}");
+                NoBackendsAvailable
+            })
     }
     fn create_window<WinitUserEvent>(
         &mut self,
