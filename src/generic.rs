@@ -52,8 +52,14 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
         builder: WindowBuilder,
         state: State,
     ) -> Result<WindowId, Backend::CreateWindowError> {
-        let render_window = self.env.create_window(elwt, builder)?;
+        let visible = builder.window_attributes().visible;
+
+        let render_window = self.env.create_window(elwt, builder.with_visible(false))?;
         let id = render_window.window.id();
+
+        if visible {
+            render_window.window.set_visible(true);
+        }
 
         self.windows.insert(
             id,
@@ -400,6 +406,11 @@ impl RenderWindow {
         f(canvas, &self.window);
 
         self.render.present(env);
+    }
+}
+impl Drop for RenderWindow {
+    fn drop(&mut self) {
+        self.window.set_visible(false);
     }
 }
 
