@@ -6,6 +6,7 @@ use winit::{
     dpi::PhysicalSize,
     error::OsError,
     event_loop::EventLoopWindowTarget,
+    platform::windows::WindowBuilderExtWindows,
     window::{Window, WindowBuilder},
 };
 
@@ -73,6 +74,7 @@ impl SkiaGraphicsBackend for WindowsUiCompositionBackend {
         builder: WindowBuilder,
     ) -> Result<RenderWindow, Self::CreateWindowError> {
         let window = builder
+            .with_no_redirection_bitmap(true)
             .build(elwt)
             .map_err(CreateWindowError::BuildWindow)?;
 
