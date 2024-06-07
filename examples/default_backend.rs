@@ -10,6 +10,7 @@ fn main() {
     let event_loop = EventLoopBuilder::new().build().unwrap();
 
     let mut window_manager = WindowManager::<DefaultBackend>::new(&event_loop).unwrap();
+    dbg!(window_manager.composited());
 
     event_loop
         .run(|event, elwt| match event {

@@ -59,6 +59,10 @@ impl SkiaGraphicsBackend for WindowsUiCompositionBackend {
 
     type CreateWindowError = CreateWindowError;
 
+    fn composited(&self) -> bool {
+        true
+    }
+
     fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
         Ok(Self(CompositionBackend::new()?))
     }
