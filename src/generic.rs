@@ -148,6 +148,9 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
     pub fn iter(&self) -> impl Iterator<Item = &StatefulWindow<State>> {
         self.windows.values()
     }
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut StatefulWindow<State>> {
+        self.windows.values_mut()
+    }
     pub fn close(&mut self, id: &WindowId) -> bool {
         self.windows.remove(&id);
         dbg!("close");
@@ -382,6 +385,9 @@ pub struct StatefulWindow<State = ()> {
 impl<State> StatefulWindow<State> {
     pub fn state(&self) -> &State {
         &self.state
+    }
+    pub fn state_mut(&mut self) -> &mut State {
+        &mut self.state
     }
     pub fn winit_window(&self) -> &Window {
         &self.render_window.window
