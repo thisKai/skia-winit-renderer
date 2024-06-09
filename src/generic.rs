@@ -52,10 +52,20 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
         builder: WindowBuilder,
         state: State,
     ) -> Result<WindowId, Backend::CreateWindowError> {
+        self.create_with_state_fn(elwt, builder, |_| state)
+    }
+    pub fn create_with_state_fn<T>(
+        &mut self,
+        elwt: &EventLoopWindowTarget<T>,
+        builder: WindowBuilder,
+        state: impl FnOnce(&Window) -> State,
+    ) -> Result<WindowId, Backend::CreateWindowError> {
         let visible = builder.window_attributes().visible;
 
         let render_window = self.env.create_window(elwt, builder.with_visible(false))?;
         let id = render_window.window.id();
+
+        let state = state(&render_window.window);
 
         if visible {
             render_window.window.set_visible(true);
