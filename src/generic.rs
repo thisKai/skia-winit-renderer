@@ -10,8 +10,8 @@ use winit::{
 };
 
 use crate::{
-    d3d12::D3d12Backend, opengl::OpenGlBackend, softbuffer::SoftBufferBackend,
-    windows_ui_composition::WindowsUiCompositionBackend,
+    d3d12::D3d12Backend, dcomp::DirectCompositionBackend, opengl::OpenGlBackend,
+    softbuffer::SoftBufferBackend, windows_ui_composition::WindowsUiCompositionBackend,
 };
 
 #[derive(Default)]
@@ -174,6 +174,7 @@ pub enum CreateWindowError {
 
 pub enum DefaultBackend {
     WindowsUiComposition(WindowsUiCompositionBackend),
+    DirectComposition(DirectCompositionBackend),
     D3d12(D3d12Backend),
     OpenGl(OpenGlBackend),
     SoftBuffer(SoftBufferBackend),
@@ -188,6 +189,7 @@ impl SkiaGraphicsBackend for DefaultBackend {
     fn composited(&self) -> bool {
         match self {
             Self::WindowsUiComposition(backend) => backend.composited(),
+            Self::DirectComposition(backend) => backend.composited(),
             Self::D3d12(backend) => backend.composited(),
             Self::OpenGl(backend) => backend.composited(),
             Self::SoftBuffer(backend) => backend.composited(),
@@ -198,7 +200,11 @@ impl SkiaGraphicsBackend for DefaultBackend {
         WindowsUiCompositionBackend::create(display)
             .map(Self::WindowsUiComposition)
             .or_else(|err| {
-                eprintln!("Windows.UI.Composition error: {err}.\nTrying D3D12.");
+                eprintln!("Windows.UI.Composition error: {err}.\nTrying DirectComposition.");
+                DirectCompositionBackend::create(display).map(Self::DirectComposition)
+            })
+            .or_else(|err| {
+                eprintln!("DirectComposition error: {err}.\nTrying D3D12.");
                 D3d12Backend::create(display).map(Self::D3d12)
             })
             .or_else(|err| {
@@ -223,6 +229,9 @@ impl SkiaGraphicsBackend for DefaultBackend {
             Self::WindowsUiComposition(backend) => backend
                 .create_window(elwt, builder)
                 .map_err(DefaultBackendCreateWindowError::WindowsUiComposition),
+            Self::DirectComposition(backend) => backend
+                .create_window(elwt, builder)
+                .map_err(DefaultBackendCreateWindowError::DirectComposition),
             Self::D3d12(backend) => backend
                 .create_window(elwt, builder)
                 .map_err(DefaultBackendCreateWindowError::D3d12),
@@ -238,6 +247,7 @@ impl SkiaGraphicsBackend for DefaultBackend {
 #[derive(Debug)]
 pub enum DefaultBackendCreateWindowError {
     WindowsUiComposition(<WindowsUiCompositionBackend as SkiaGraphicsBackend>::CreateWindowError),
+    DirectComposition(<DirectCompositionBackend as SkiaGraphicsBackend>::CreateWindowError),
     D3d12(<D3d12Backend as SkiaGraphicsBackend>::CreateWindowError),
     OpenGl(<OpenGlBackend as SkiaGraphicsBackend>::CreateWindowError),
     SoftBuffer(<SoftBufferBackend as SkiaGraphicsBackend>::CreateWindowError),
@@ -248,6 +258,9 @@ impl Provider for DefaultBackend {
             Self::WindowsUiComposition(backend) => {
                 request.provide_ref::<WindowsUiCompositionBackend>(backend)
             }
+            Self::DirectComposition(backend) => {
+                request.provide_ref::<DirectCompositionBackend>(backend)
+            }
             Self::D3d12(backend) => request.provide_ref::<D3d12Backend>(backend),
             Self::OpenGl(backend) => request.provide_ref::<OpenGlBackend>(backend),
             Self::SoftBuffer(backend) => request.provide_ref::<SoftBufferBackend>(backend),
@@ -257,6 +270,9 @@ impl Provider for DefaultBackend {
         match self {
             Self::WindowsUiComposition(backend) => {
                 request.provide_mut::<WindowsUiCompositionBackend>(backend)
+            }
+            Self::DirectComposition(backend) => {
+                request.provide_mut::<DirectCompositionBackend>(backend)
             }
             Self::D3d12(backend) => request.provide_mut::<D3d12Backend>(backend),
             Self::OpenGl(backend) => request.provide_mut::<OpenGlBackend>(backend),
@@ -270,6 +286,7 @@ pub struct AnyBackend {
     softbuffer: Option<SoftBufferBackend>,
     opengl: Option<OpenGlBackend>,
     windows_ui_composition: Option<WindowsUiCompositionBackend>,
+    direct_composition: Option<DirectCompositionBackend>,
     d3d12: Option<D3d12Backend>,
 }
 impl Provider for AnyBackend {
@@ -282,6 +299,9 @@ impl Provider for AnyBackend {
         }
         if let Some(env) = &self.windows_ui_composition {
             request.provide_ref::<WindowsUiCompositionBackend>(env);
+        }
+        if let Some(env) = &self.direct_composition {
+            request.provide_ref::<DirectCompositionBackend>(env);
         }
         if let Some(env) = &self.d3d12 {
             request.provide_ref::<D3d12Backend>(env);
@@ -296,6 +316,9 @@ impl Provider for AnyBackend {
         }
         if let Some(env) = &mut self.windows_ui_composition {
             request.provide_mut::<WindowsUiCompositionBackend>(env);
+        }
+        if let Some(env) = &mut self.direct_composition {
+            request.provide_mut::<DirectCompositionBackend>(env);
         }
         if let Some(env) = &mut self.d3d12 {
             request.provide_mut::<D3d12Backend>(env);
@@ -319,6 +342,14 @@ impl Provider for OpenGlBackend {
     }
 }
 impl Provider for WindowsUiCompositionBackend {
+    fn provide<'a>(&'a self, req: &mut Demand<'a>) {
+        req.provide_ref::<Self>(self);
+    }
+    fn provide_mut<'a>(&'a mut self, req: &mut Demand<'a>) {
+        req.provide_mut::<Self>(self);
+    }
+}
+impl Provider for DirectCompositionBackend {
     fn provide<'a>(&'a self, req: &mut Demand<'a>) {
         req.provide_ref::<Self>(self);
     }

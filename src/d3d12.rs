@@ -252,7 +252,7 @@ impl SkiaRender for HwndSwapChain {
 
     fn present(&mut self, env: &mut dyn Provider) {
         let env = request_mut::<D3d12Backend>(env).unwrap();
-        self.present(&mut env.0)
+        self.present(&mut env.0).unwrap()
     }
 
     fn resize(&mut self, env: &mut dyn Provider, size: PhysicalSize<u32>, _: &Window) {
