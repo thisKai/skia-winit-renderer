@@ -1,7 +1,10 @@
 use provide_any::provide_any::{request_mut, Provider};
 
-use skia_d3d12_swap_chain::{CompositionBackend, CompositionSwapChain, CompositionTarget};
-use windows::{Foundation::Numerics::Vector2, UI::Composition::CompositionSurfaceBrush};
+use skia_d3d12_swap_chain::{WinCompBackend, WinCompSwapChain, WinCompTarget};
+use windows::{
+    Foundation::Numerics::{Vector2, Vector3},
+    UI::Composition::{CompositionSurfaceBrush, SpriteVisual},
+};
 use winit::{
     dpi::PhysicalSize,
     error::OsError,
@@ -18,7 +21,7 @@ pub enum CreateWindowError {
     CreateTarget(windows::core::Error),
 }
 
-pub struct WindowsUiCompositionBackend(CompositionBackend);
+pub struct WindowsUiCompositionBackend(WinCompBackend);
 
 impl WindowsUiCompositionBackend {
     fn create_renderer(
@@ -26,7 +29,7 @@ impl WindowsUiCompositionBackend {
         window: &Window,
     ) -> windows::core::Result<WindowsUiCompositionRenderer> {
         let size = window.inner_size();
-        let target = CompositionTarget::with_window(&window)?;
+        let target = WinCompTarget::with_window(&window)?;
 
         let swap_chain = self.0.create_swap_chain(size.width, size.height).unwrap();
 
@@ -65,7 +68,7 @@ impl SkiaGraphicsBackend for WindowsUiCompositionBackend {
     }
 
     fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
-        Ok(Self(CompositionBackend::new()?))
+        Ok(Self(WinCompBackend::new()?))
     }
 
     fn create_window<WinitUserEvent>(
@@ -87,9 +90,9 @@ impl SkiaGraphicsBackend for WindowsUiCompositionBackend {
 }
 
 pub struct WindowsUiCompositionRenderer {
-    target: CompositionTarget,
+    target: WinCompTarget,
     brush: CompositionSurfaceBrush,
-    swap_chain: CompositionSwapChain,
+    swap_chain: WinCompSwapChain,
 }
 
 impl SkiaRender for WindowsUiCompositionRenderer {
