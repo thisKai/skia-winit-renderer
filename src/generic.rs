@@ -155,6 +155,9 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
     //     }
     //     Ok(())
     // }
+    pub fn ids(&self) -> impl Iterator<Item = &WindowId> {
+        self.windows.keys()
+    }
     pub fn iter(&self) -> impl Iterator<Item = &StatefulWindow<State>> {
         self.windows.values()
     }
