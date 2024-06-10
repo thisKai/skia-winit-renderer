@@ -1,7 +1,5 @@
 use skia_safe::{colors, Paint};
-use skia_winit_renderer::{
-    generic::WindowManager, dcomp::DirectCompositionBackend,
-};
+use skia_winit_renderer::{dcomp::DirectCompositionBackend, generic::WindowManager};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
@@ -11,8 +9,7 @@ use winit::{
 fn main() {
     let event_loop = EventLoopBuilder::new().build().unwrap();
 
-    let mut window_manager =
-        WindowManager::<DirectCompositionBackend>::new(&event_loop).unwrap();
+    let mut window_manager = WindowManager::<DirectCompositionBackend>::new(&event_loop).unwrap();
 
     event_loop
         .run(|event, elwt| match event {
