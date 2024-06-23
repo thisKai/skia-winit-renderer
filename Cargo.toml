@@ -30,17 +30,20 @@ glutin-winit = "0.4"
 skia-safe = { version = "0.73", features = ["textlayout", "gl"] }
 gl = "0.14.0"
 provide-any = { git = "https://github.com/thisKai/provide-any.git", branch = "check-if-found" }
-skia-d3d12-swap-chain = { git = "https://github.com/thisKai/rust-skia-d3d12-swap-chain", branch = "smooth-resize" }
 
 [target.'cfg(unix)'.dependencies]
 skia-safe = { version = "0.73", features = [
     "textlayout",
+    "svg",
     "gl",
+    "vulkan",
     "x11",
+    "egl",
     "wayland",
 ] }
 
 [target.'cfg(windows)'.dependencies]
+skia-d3d12-swap-chain = { git = "https://github.com/thisKai/rust-skia-d3d12-swap-chain", branch = "smooth-resize" }
 skia-safe = { version = "0.73", features = ["textlayout", "gl", "d3d"] }
 windows = { version = "0.56", features = [
     "System",
