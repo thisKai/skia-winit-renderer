@@ -86,7 +86,7 @@ impl GlEnv {
 
         println!("Picked a config with {} samples", gl_config.num_samples());
 
-        let window = window.expect("Could not create window with OpenGL context");
+        let window = window.ok_or("Could not create window with OpenGL context")?;
         let raw_window_handle = window.raw_window_handle();
         // XXX The display could be obtained from any object created by it, so we can
         // query it from the config.

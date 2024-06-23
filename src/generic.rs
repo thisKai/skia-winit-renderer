@@ -224,8 +224,14 @@ impl SkiaGraphicsBackend for DefaultBackend {
                 .create_window(elwt, builder)
                 .map_err(DefaultBackendCreateWindowError::D3d12),
             Self::OpenGl(backend) => backend
-                .create_window(elwt, builder)
-                .map_err(DefaultBackendCreateWindowError::OpenGl),
+                .create_window(elwt, builder.clone())
+                .map_err(DefaultBackendCreateWindowError::OpenGl)
+                .or_else(|_| {
+                    *self = SoftBufferBackend::create(elwt)
+                        .map(Self::SoftBuffer)
+                        .map_err(|_| DefaultBackendCreateWindowError::SwitchBackend)?;
+                    self.create_window(elwt, builder)
+                }),
             Self::SoftBuffer(backend) => backend
                 .create_window(elwt, builder)
                 .map_err(DefaultBackendCreateWindowError::SoftBuffer),
@@ -242,6 +248,7 @@ pub enum DefaultBackendCreateWindowError {
     D3d12(<D3d12Backend as SkiaGraphicsBackend>::CreateWindowError),
     OpenGl(<OpenGlBackend as SkiaGraphicsBackend>::CreateWindowError),
     SoftBuffer(<SoftBufferBackend as SkiaGraphicsBackend>::CreateWindowError),
+    SwitchBackend,
 }
 impl Provider for DefaultBackend {
     fn provide<'a>(&'a self, request: &mut Demand<'a>) {
