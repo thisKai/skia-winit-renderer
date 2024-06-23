@@ -29,7 +29,7 @@ glutin = "0.31"
 glutin-winit = "0.4"
 skia-safe = { version = "0.73", features = ["textlayout", "gl"] }
 gl = "0.14.0"
-provide-any = { git = "https://github.com/thisKai/provide-any.git", version = "0.1.0" }
+provide-any = { git = "https://github.com/thisKai/provide-any.git", branch = "check-if-found" }
 skia-d3d12-swap-chain = { git = "https://github.com/thisKai/rust-skia-d3d12-swap-chain", branch = "smooth-resize" }
 
 [target.'cfg(unix)'.dependencies]
