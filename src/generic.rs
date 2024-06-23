@@ -81,42 +81,11 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
 
         Ok(id)
     }
-    // pub fn create_with_state<Env, T>(
-    //     &mut self,
-    //     elwt: &EventLoopWindowTarget<T>,
-    //     builder: WindowBuilder,
-    //     state: State,
-    // ) -> Result<WindowId, BackendError<Env>>
-    // where
-    //     Env: SkiaGraphicsBackend + InitEnv + 'static,
-    // {
-    //     self.create_env_if_absent::<Env, _>(elwt)
-    //         .map_err(BackendError::Create)?;
-
-    //     let env = request_mut::<Env>(&mut self.env).unwrap();
-
-    //     let render_window = env
-    //         .create_window(elwt, builder)
-    //         .map_err(BackendError::CreateWindow)?;
-    //     let id = render_window.window.id();
-
-    //     self.windows.insert(
-    //         id,
-    //         StatefulWindow {
-    //             state,
-    //             render_window,
-    //         },
-    //     );
-
-    //     Ok(id)
-    // }
     pub fn get(&self, window_id: &WindowId) -> Option<&StatefulWindow<State>> {
         self.windows.get(window_id)
-        // .map(|window| &window.render_window.window)
     }
     pub fn get_mut(&mut self, window_id: &WindowId) -> Option<&mut StatefulWindow<State>> {
         self.windows.get_mut(window_id)
-        // .map(|window| &mut window.render_window.window)
     }
     pub fn remove(&mut self, window_id: &WindowId) {
         self.windows.remove(window_id);
@@ -141,20 +110,6 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
             .render
             .resize(&mut self.env, size, &window.render_window.window);
     }
-    // fn create_env_if_absent<Env, T>(
-    //     &mut self,
-    //     elwt: &EventLoopWindowTarget<T>,
-    // ) -> Result<(), Env::CreateError>
-    // where
-    //     Env: SkiaGraphicsBackend + InitEnv + 'static,
-    // {
-    //     let exists = request_ref::<Env>(&self.env).is_some();
-    //     if !exists {
-    //         let env = Env::env(&mut self.env);
-    //         *env = Some(Env::create(elwt)?);
-    //     }
-    //     Ok(())
-    // }
     pub fn ids(&self) -> impl Iterator<Item = &WindowId> {
         self.windows.keys()
     }
@@ -200,12 +155,14 @@ impl SkiaGraphicsBackend for DefaultBackend {
     }
 
     fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
-        WindowsUiCompositionBackend::create(display)
-            .map(Self::WindowsUiComposition)
-            .or_else(|err| {
-                eprintln!("Windows.UI.Composition error: {err}.\nTrying DirectComposition.");
-                DirectCompositionBackend::create(display).map(Self::DirectComposition)
-            })
+        DirectCompositionBackend::create(display)
+            .map(Self::DirectComposition)
+            // WindowsUiCompositionBackend::create(display)
+            //     .map(Self::WindowsUiComposition)
+            //     .or_else(|err| {
+            //         eprintln!("Windows.UI.Composition error: {err}.\nTrying DirectComposition.");
+            //         DirectCompositionBackend::create(display).map(Self::DirectComposition)
+            //     })
             .or_else(|err| {
                 eprintln!("DirectComposition error: {err}.\nTrying D3D12.");
                 D3d12Backend::create(display).map(Self::D3d12)

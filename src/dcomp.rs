@@ -1,40 +1,17 @@
-use std::collections::HashMap;
-
 use provide_any::provide_any::request_mut;
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use skia_d3d12_swap_chain::{DCompBackend, DCompSwapChain};
-use windows::{
-    core::Interface,
-    Win32::{
-        Foundation::HWND,
-        Graphics::{
-            Direct2D::{D2D1CreateDevice, ID2D1Device},
-            Direct3D::D3D_DRIVER_TYPE_HARDWARE,
-            Direct3D11::{
-                D3D11CreateDevice, ID3D11Device, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-                D3D11_SDK_VERSION,
-            },
-            DirectComposition::{
-                DCompositionCreateDevice2, IDCompositionDesktopDevice, IDCompositionTarget,
-                IDCompositionVisual2, DCOMPOSITION_BACKFACE_VISIBILITY_HIDDEN,
-            },
-            Dxgi::IDXGIDevice3,
-            Gdi::ValidateRect,
-        },
-    },
+use windows::Win32::Graphics::DirectComposition::{
+    IDCompositionTarget, IDCompositionVisual2, DCOMPOSITION_BACKFACE_VISIBILITY_HIDDEN,
 };
 use winit::{
     dpi::PhysicalSize,
     error::OsError,
     event_loop::EventLoopWindowTarget,
     platform::windows::WindowBuilderExtWindows,
-    window::{Window, WindowBuilder, WindowId},
+    window::{Window, WindowBuilder},
 };
 
-use crate::{
-    d3d12::{D3d12BackendOld, SkiaD3d12SwapChainOld},
-    generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender},
-};
+use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
 
 #[derive(Debug)]
 pub enum CreateWindowError {
