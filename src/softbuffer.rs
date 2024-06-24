@@ -86,6 +86,10 @@ impl SkiaRender for SkiaSoftBufferRenderer {
         let pixels: &[u32] = peek.pixels().unwrap();
 
         let mut buffer = self.softbuffer_surface.buffer_mut().unwrap();
+
+        if pixels.len() != buffer.len() {
+            return;
+        }
         buffer.copy_from_slice(pixels);
         buffer.present().unwrap();
     }
