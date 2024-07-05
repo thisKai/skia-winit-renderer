@@ -27,12 +27,12 @@ winit = { version = "0.29", default-features = false, features = [
 softbuffer = "0.3"
 glutin = "0.31"
 glutin-winit = "0.4"
-skia-safe = { version = "0.73", features = ["textlayout", "gl"] }
+skia-safe = { version = "0.75", features = ["textlayout", "gl"] }
 gl = "0.14.0"
 provide-any = { git = "https://github.com/thisKai/provide-any.git", branch = "check-if-found" }
 
 [target.'cfg(unix)'.dependencies]
-skia-safe = { version = "0.73", features = [
+skia-safe = { version = "0.75", features = [
     "textlayout",
     "svg",
     "gl",
@@ -44,7 +44,7 @@ skia-safe = { version = "0.73", features = [
 
 [target.'cfg(windows)'.dependencies]
 skia-d3d12-swap-chain = { git = "https://github.com/thisKai/rust-skia-d3d12-swap-chain", branch = "smooth-resize" }
-skia-safe = { version = "0.73", features = ["textlayout", "gl", "d3d"] }
+skia-safe = { version = "0.75", features = ["textlayout", "gl", "d3d"] }
 windows = { version = "0.56", features = [
     "System",
     "Foundation_Numerics",
