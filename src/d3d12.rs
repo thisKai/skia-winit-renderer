@@ -5,6 +5,7 @@ use winit::{
     dpi::PhysicalSize,
     error::OsError,
     event_loop::ActiveEventLoop,
+    raw_window_handle::HasDisplayHandle,
     window::{Window, WindowAttributes},
 };
 
@@ -23,7 +24,7 @@ impl SkiaGraphicsBackend for D3d12Backend {
 
     type CreateWindowError = CreateD3d12WindowError;
 
-    fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
+    fn create<D: HasDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
         Ok(Self(Backend::new()?))
     }
 

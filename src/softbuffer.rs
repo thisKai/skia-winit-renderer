@@ -1,15 +1,16 @@
 use std::num::NonZeroU32;
 
 use provide_any::provide_any::Provider;
-use raw_window_handle::{
-    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
-};
 use skia_safe::Surface;
 use softbuffer::{Context, SoftBufferError, Surface as SoftBufferSurface};
 use winit::{
     dpi::PhysicalSize,
     error::OsError,
     event_loop::ActiveEventLoop,
+    raw_window_handle::HasDisplayHandle,
+    raw_window_handle_05::{
+        HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+    },
     window::{Window, WindowAttributes},
 };
 
@@ -41,7 +42,9 @@ impl SkiaGraphicsBackend for SoftBufferBackend {
     type CreateError = SoftBufferError;
     type CreateWindowError = CreateWindowError;
 
-    fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
+    fn create<D: HasDisplayHandle + HasRawDisplayHandle>(
+        display: &D,
+    ) -> Result<Self, Self::CreateError> {
         Self::new(display.raw_display_handle())
     }
     fn create_window(

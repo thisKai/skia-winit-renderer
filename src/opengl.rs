@@ -18,7 +18,7 @@ use skia_safe::{
 use winit::{
     dpi::PhysicalSize,
     event_loop::ActiveEventLoop,
-    raw_window_handle::HasWindowHandle,
+    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::{Window, WindowAttributes},
 };
 
@@ -32,7 +32,7 @@ impl SkiaGraphicsBackend for OpenGlBackend {
     type CreateError = Infallible;
     type CreateWindowError = Box<dyn Error>;
 
-    fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
+    fn create<D: HasDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
         Ok(Self::default())
     }
     fn create_window(

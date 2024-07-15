@@ -1,11 +1,12 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use provide_any::provide_any::{Demand, Provider};
-use raw_window_handle::HasRawDisplayHandle;
 use skia_safe::{Canvas, Surface};
 use winit::{
     dpi::PhysicalSize,
     event_loop::ActiveEventLoop,
+    raw_window_handle::HasDisplayHandle,
+    raw_window_handle_05::HasRawDisplayHandle,
     window::{Window, WindowAttributes, WindowId},
 };
 
@@ -22,7 +23,9 @@ pub struct WindowManager<Backend = DefaultBackend, State = ()> {
     windows: HashMap<WindowId, StatefulWindow<State>>,
 }
 impl<Backend: Provider + SkiaGraphicsBackend + 'static> WindowManager<Backend> {
-    pub fn new<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Backend::CreateError> {
+    pub fn new<D: HasDisplayHandle + HasRawDisplayHandle>(
+        display: &D,
+    ) -> Result<Self, Backend::CreateError> {
         let b = Self::with_state::<D>(display);
         dbg!(b.is_ok());
         b
@@ -42,7 +45,9 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
     pub fn composited(&self) -> bool {
         self.env.composited()
     }
-    pub fn with_state<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Backend::CreateError> {
+    pub fn with_state<D: HasDisplayHandle + HasRawDisplayHandle>(
+        display: &D,
+    ) -> Result<Self, Backend::CreateError> {
         Ok(Self {
             env: Backend::create::<D>(display)?,
             windows: HashMap::new(),
@@ -164,7 +169,9 @@ impl SkiaGraphicsBackend for DefaultBackend {
         }
     }
 
-    fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
+    fn create<D: HasDisplayHandle + HasRawDisplayHandle>(
+        display: &D,
+    ) -> Result<Self, Self::CreateError> {
         #[cfg(windows)]
         {
             DirectCompositionBackend::create(display)
@@ -418,7 +425,9 @@ pub trait SkiaGraphicsBackend: Provider + Sized {
         false
     }
 
-    fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError>;
+    fn create<D: HasDisplayHandle + HasRawDisplayHandle>(
+        display: &D,
+    ) -> Result<Self, Self::CreateError>;
     fn create_window(
         &mut self,
         event_loop: &ActiveEventLoop,

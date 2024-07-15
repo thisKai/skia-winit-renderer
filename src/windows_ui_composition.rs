@@ -13,6 +13,7 @@ use winit::{
     error::OsError,
     event_loop::ActiveEventLoop,
     platform::windows::WindowAttributesExtWindows,
+    raw_window_handle::HasDisplayHandle,
     window::{Window, WindowAttributes},
 };
 
@@ -94,7 +95,7 @@ impl SkiaGraphicsBackend for WindowsUiCompositionBackend {
         true
     }
 
-    fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
+    fn create<D: HasDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
         Ok(Self(WinCompBackend::new()?))
     }
 
