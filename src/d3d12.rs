@@ -4,8 +4,8 @@ use skia_safe::Surface;
 use winit::{
     dpi::PhysicalSize,
     error::OsError,
-    event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder},
+    event_loop::ActiveEventLoop,
+    window::{Window, WindowAttributes},
 };
 
 use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
@@ -27,13 +27,13 @@ impl SkiaGraphicsBackend for D3d12Backend {
         Ok(Self(Backend::new()?))
     }
 
-    fn create_window<WinitUserEvent>(
+    fn create_window(
         &mut self,
-        elwt: &EventLoopWindowTarget<WinitUserEvent>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<RenderWindow, Self::CreateWindowError> {
-        let window = builder
-            .build(elwt)
+        let window = event_loop
+            .create_window(attributes)
             .map_err(CreateD3d12WindowError::BuildWindow)?;
 
         let size = window.inner_size();

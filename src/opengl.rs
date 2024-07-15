@@ -11,15 +11,15 @@ use glutin::{
 };
 use glutin_winit::DisplayBuilder;
 use provide_any::provide_any::{request_mut, Provider};
-use raw_window_handle::HasRawWindowHandle;
 use skia_safe::{
     gpu::{self, backend_render_targets, gl::FramebufferInfo, DirectContext, SurfaceOrigin},
     ColorType, Surface,
 };
 use winit::{
     dpi::PhysicalSize,
-    event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder},
+    event_loop::ActiveEventLoop,
+    raw_window_handle::HasWindowHandle,
+    window::{Window, WindowAttributes},
 };
 
 use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
@@ -35,15 +35,16 @@ impl SkiaGraphicsBackend for OpenGlBackend {
     fn create<D: raw_window_handle::HasRawDisplayHandle>(_: &D) -> Result<Self, Self::CreateError> {
         Ok(Self::default())
     }
-    fn create_window<WinitUserEvent>(
+    fn create_window(
         &mut self,
-        elwt: &EventLoopWindowTarget<WinitUserEvent>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<crate::generic::RenderWindow, Self::CreateWindowError> {
         match &mut self.state {
             Some(env) => todo!(),
             env @ None => {
-                let (new_env, window, render) = GlEnv::create_with_first_window2(elwt, builder)?;
+                let (new_env, window, render) =
+                    GlEnv::create_with_first_window(event_loop, attributes)?;
                 *env = Some(new_env);
                 Ok(RenderWindow::new(render, window))
             }
@@ -57,16 +58,16 @@ pub(crate) struct GlEnv {
     fb_info: FramebufferInfo,
 }
 impl GlEnv {
-    fn create_with_first_window2<T>(
-        elwt: &EventLoopWindowTarget<T>,
-        builder: WindowBuilder,
+    fn create_with_first_window(
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<(Self, Window, SkiaOpenGlRenderer), Box<dyn Error>> {
         // Only Windows requires the window to be present before creating the display.
         // Other platforms don't really need one.
         //
         // XXX if you don't care about running on Android or so you can safely remove
         // this condition and always pass the window builder.
-        let window_builder = cfg!(wgl_backend).then(|| builder.clone());
+        let window_attributes = cfg!(wgl_backend).then(|| attributes.clone());
 
         // The template will match only the configurations supporting rendering
         // to windows.
@@ -80,14 +81,14 @@ impl GlEnv {
             .with_alpha_size(8)
             .with_transparency(cfg!(cgl_backend));
 
-        let display_builder = DisplayBuilder::new().with_window_builder(window_builder);
+        let display_builder = DisplayBuilder::new().with_window_attributes(window_attributes);
 
-        let (window, gl_config) = display_builder.build(&elwt, template, gl_config_picker)?;
+        let (window, gl_config) = display_builder.build(event_loop, template, gl_config_picker)?;
 
         println!("Picked a config with {} samples", gl_config.num_samples());
 
         let window = window.ok_or("Could not create window with OpenGL context")?;
-        let raw_window_handle = window.raw_window_handle();
+        let raw_window_handle = window.window_handle().unwrap().as_raw();
         // XXX The display could be obtained from any object created by it, so we can
         // query it from the config.
         let gl_display = gl_config.display();

@@ -9,8 +9,8 @@ use softbuffer::{Context, SoftBufferError, Surface as SoftBufferSurface};
 use winit::{
     dpi::PhysicalSize,
     error::OsError,
-    event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder},
+    event_loop::ActiveEventLoop,
+    window::{Window, WindowAttributes},
 };
 
 use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
@@ -44,13 +44,13 @@ impl SkiaGraphicsBackend for SoftBufferBackend {
     fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError> {
         Self::new(display.raw_display_handle())
     }
-    fn create_window<WinitUserEvent>(
+    fn create_window(
         &mut self,
-        elwt: &EventLoopWindowTarget<WinitUserEvent>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<crate::generic::RenderWindow, Self::CreateWindowError> {
-        let window = builder
-            .build(elwt)
+        let window = event_loop
+            .create_window(attributes)
             .map_err(CreateWindowError::CreateWindow)?;
         let size: (i32, i32) = window.inner_size().into();
 

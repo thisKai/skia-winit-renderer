@@ -11,9 +11,9 @@ use windows::{
 use winit::{
     dpi::PhysicalSize,
     error::OsError,
-    event_loop::EventLoopWindowTarget,
-    platform::windows::WindowBuilderExtWindows,
-    window::{Window, WindowBuilder},
+    event_loop::ActiveEventLoop,
+    platform::windows::WindowAttributesExtWindows,
+    window::{Window, WindowAttributes},
 };
 
 use crate::generic::{RenderWindow, SkiaGraphicsBackend, SkiaRender};
@@ -98,14 +98,13 @@ impl SkiaGraphicsBackend for WindowsUiCompositionBackend {
         Ok(Self(WinCompBackend::new()?))
     }
 
-    fn create_window<WinitUserEvent>(
+    fn create_window(
         &mut self,
-        elwt: &EventLoopWindowTarget<WinitUserEvent>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<RenderWindow, Self::CreateWindowError> {
-        let window = builder
-            .with_no_redirection_bitmap(true)
-            .build(elwt)
+        let window = event_loop
+            .create_window(attributes.with_no_redirection_bitmap(true))
             .map_err(CreateWindowError::BuildWindow)?;
 
         let render = self

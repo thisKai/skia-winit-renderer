@@ -5,7 +5,7 @@ use skia_winit_renderer::{
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoopBuilder,
-    window::WindowBuilder,
+    window::WindowAttributes,
 };
 
 fn main() {
@@ -18,7 +18,7 @@ fn main() {
         .run(|event, elwt| match event {
             Event::Resumed => {
                 window_manager
-                    .create(elwt, WindowBuilder::new().with_transparent(true))
+                    .create(elwt, WindowAttributes::new().with_transparent(true))
                     .unwrap();
             }
             Event::WindowEvent { window_id, event } => match event {

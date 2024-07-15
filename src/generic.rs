@@ -5,8 +5,8 @@ use raw_window_handle::HasRawDisplayHandle;
 use skia_safe::{Canvas, Surface};
 use winit::{
     dpi::PhysicalSize,
-    event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder, WindowId},
+    event_loop::ActiveEventLoop,
+    window::{Window, WindowAttributes, WindowId},
 };
 
 #[cfg(windows)]
@@ -27,12 +27,12 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static> WindowManager<Backend> {
         dbg!(b.is_ok());
         b
     }
-    pub fn create<T>(
+    pub fn create(
         &mut self,
-        elwt: &EventLoopWindowTarget<T>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<WindowId, Backend::CreateWindowError> {
-        self.create_with_state(elwt, builder, ())
+        self.create_with_state(event_loop, attributes, ())
     }
     pub fn draw(&mut self, window_id: &WindowId, mut f: impl FnMut(&Canvas, &Window)) {
         self.draw_with_state(window_id, |canvas, window, _| f(canvas, window))
@@ -48,23 +48,25 @@ impl<Backend: Provider + SkiaGraphicsBackend + 'static, State> WindowManager<Bac
             windows: HashMap::new(),
         })
     }
-    pub fn create_with_state<T>(
+    pub fn create_with_state(
         &mut self,
-        elwt: &EventLoopWindowTarget<T>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
         state: State,
     ) -> Result<WindowId, Backend::CreateWindowError> {
-        self.create_with_state_fn(elwt, builder, |_| state)
+        self.create_with_state_fn(event_loop, attributes, |_| state)
     }
-    pub fn create_with_state_fn<T>(
+    pub fn create_with_state_fn(
         &mut self,
-        elwt: &EventLoopWindowTarget<T>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
         state: impl FnOnce(&Window) -> State,
     ) -> Result<WindowId, Backend::CreateWindowError> {
-        let visible = builder.window_attributes().visible;
+        let visible = attributes.visible;
 
-        let render_window = self.env.create_window(elwt, builder.with_visible(false))?;
+        let render_window = self
+            .env
+            .create_window(event_loop, attributes.with_visible(false))?;
         let id = render_window.window.id();
 
         let state = state(&render_window.window);
@@ -205,35 +207,35 @@ impl SkiaGraphicsBackend for DefaultBackend {
                 })
         }
     }
-    fn create_window<WinitUserEvent>(
+    fn create_window(
         &mut self,
-        elwt: &EventLoopWindowTarget<WinitUserEvent>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<RenderWindow, Self::CreateWindowError> {
         match self {
             #[cfg(windows)]
             Self::WindowsUiComposition(backend) => backend
-                .create_window(elwt, builder)
+                .create_window(event_loop, attributes)
                 .map_err(DefaultBackendCreateWindowError::WindowsUiComposition),
             #[cfg(windows)]
             Self::DirectComposition(backend) => backend
-                .create_window(elwt, builder)
+                .create_window(event_loop, attributes)
                 .map_err(DefaultBackendCreateWindowError::DirectComposition),
             #[cfg(windows)]
             Self::D3d12(backend) => backend
-                .create_window(elwt, builder)
+                .create_window(event_loop, attributes)
                 .map_err(DefaultBackendCreateWindowError::D3d12),
             Self::OpenGl(backend) => backend
-                .create_window(elwt, builder.clone())
+                .create_window(event_loop, attributes.clone())
                 .map_err(DefaultBackendCreateWindowError::OpenGl)
                 .or_else(|_| {
-                    *self = SoftBufferBackend::create(elwt)
+                    *self = SoftBufferBackend::create(event_loop)
                         .map(Self::SoftBuffer)
                         .map_err(|_| DefaultBackendCreateWindowError::SwitchBackend)?;
-                    self.create_window(elwt, builder)
+                    self.create_window(event_loop, attributes)
                 }),
             Self::SoftBuffer(backend) => backend
-                .create_window(elwt, builder)
+                .create_window(event_loop, attributes)
                 .map_err(DefaultBackendCreateWindowError::SoftBuffer),
         }
     }
@@ -417,10 +419,10 @@ pub trait SkiaGraphicsBackend: Provider + Sized {
     }
 
     fn create<D: HasRawDisplayHandle>(display: &D) -> Result<Self, Self::CreateError>;
-    fn create_window<WinitUserEvent>(
+    fn create_window(
         &mut self,
-        elwt: &EventLoopWindowTarget<WinitUserEvent>,
-        builder: WindowBuilder,
+        event_loop: &ActiveEventLoop,
+        attributes: WindowAttributes,
     ) -> Result<RenderWindow, Self::CreateWindowError>;
 }
 
